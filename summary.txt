@@ -1,0 +1,2 @@
+1. The basis for determining the mode of work:Whether the host has a public network IP;Firewall rules of the host.
+

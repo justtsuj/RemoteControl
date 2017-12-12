@@ -1,0 +1,3 @@
+
+#define FORWARDCON 0
+#define REVERSECON 1
