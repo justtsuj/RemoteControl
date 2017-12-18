@@ -1,2 +1,2 @@
 1. The forward and backward communication is used as two different functions to code to the program, and the final working mode of the program is determined by the command line parameters at the runtime.
-
+2. short 2 bytes, int 4 bytes
