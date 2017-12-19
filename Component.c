@@ -48,3 +48,8 @@ void recv_msg(int sockfd, char *msg, int *plen){
 	recv_all(sockfd, buffer + 2, *plen, 0);
 	memcpy(msg, buffer + 2, *plen);
 }
+
+void get_file(int sockfd, char *dest_path, char *sour_path){
+	int len = strlen(sour_path);
+	send_msg()
+}
