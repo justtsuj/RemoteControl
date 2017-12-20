@@ -1,4 +1,5 @@
 unsigned char buffer[BUFSIZE + 16 + 20];
+unsigned char message[BUFSIZE];
 
 void send_all(int sockfd, int len, int flags){
 	int send_msg_len;
@@ -49,7 +50,27 @@ void recv_msg(int sockfd, char *msg, int *plen){
 	memcpy(msg, buffer + 2, *plen);
 }
 
-void get_file(int sockfd, char *dest_path, char *sour_path){
+void get_file(int sockfd, char *dest_path, char *sour_path){	//point out the meaning of parameter
+	char *tmp;
+	int fd;
+	int i, sum = 0;
 	int len = strlen(sour_path);
-	send_msg()
+	send_msg(sockfd, sour_path, len);
+	tmp = strrchr(sour_path, '/');
+	if(tmp == NULL)
+		tmp = sour_path;
+	else
+		++tmp;
+	len = strlen(dest_path);
+	if(dest_path[len - 1] != '/')
+		dest_path[len] = '/';
+	strcat(dest_path, sour_path);
+	fd = creat(dest_path, 0644);
+	if(fd < 0) return;	//to be perfected
+	while(){	//to be perfected
+		recv_msg(sockfd, message, &i);	//to be perfected
+		if(write(fd, message, i) != i) return; //exception handling;
+		sum += i;
+	}
+	printf("%d done.\n", sum);
 }
