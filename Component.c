@@ -1,5 +1,5 @@
 unsigned char buffer[BUFSIZE + 16 + 20];
-unsigned char message[BUFSIZE];
+unsigned char message[BUFSIZE + 5];
 
 void send_all(int sockfd, int len, int flags){
 	int send_msg_len;
@@ -62,15 +62,53 @@ void get_file(int sockfd, char *dest_path, char *sour_path){	//point out the mea
 	else
 		++tmp;
 	len = strlen(dest_path);
-	if(dest_path[len - 1] != '/')
-		dest_path[len] = '/';
+	/*if(dest_path[len - 1] != '/')
+		dest_path[len] = '/';*/
 	strcat(dest_path, sour_path);
 	fd = creat(dest_path, 0644);
 	if(fd < 0) return;	//to be perfected
-	while(){	//to be perfected
+	while(1){	//to be perfected
 		recv_msg(sockfd, message, &i);	//to be perfected
+		if(i <= 0) return;
 		if(write(fd, message, i) != i) return; //exception handling;
 		sum += i;
 	}
-	printf("%d done.\n", sum);
+}
+
+void put_file(int sockfd, char *dest_path, char *sour_path){
+	int sum = 0;
+	char *tmp = strrchr(sour_path, '/');
+	if(tmp == NULL)
+		tmp = sour_path;
+	else
+		++tmp;
+	strcat(dest_path, sour_path);
+	send_msg(sockfd, dest_path, strlen(dest_path));
+	if(open(sour_path, O_RDONLY) < 0) return;
+	while(1){
+		int i = read(fd, message, BUFSIZE);
+		if(i <= 0) return;
+		send_msg(sockfd, message, i);
+		sum += i;
+	}
+}
+
+void run_shell(int sockfd, char *shell_command){
+	fd_set rd;
+	int len;
+	send_msg(sockfd, shell_command, strlen(shell_command));
+	while(1){
+		FD_ZERO(&rd);
+		FD_SET(0, rd);
+		FD_SET(sockfd, &rd);
+		select(sockfd + 1, &rd, NULL, NULL, NULL)
+		if(FD_ISSET(sockfd, &rd)){
+			recv_msg(sockfd, message, &len);
+			write(1, message, len);
+		}
+		if(FD_ISSET(0, &rd)){
+			len = read(0, message, BUFSIZE);
+			send_msg(sockfd, message, len);
+		}
+	}
 }
