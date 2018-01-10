@@ -51,6 +51,7 @@ void get_file(char *dest_path, char *sour_path){	//point out the meaning of para
 
 void put_file(char *dest_path, char *sour_path){
 	int sum = 0;
+	int fd;
 	char *tmp = strrchr(sour_path, '/');
 	if(tmp == NULL)
 		tmp = sour_path;
@@ -58,7 +59,7 @@ void put_file(char *dest_path, char *sour_path){
 		++tmp;
 	strcat(dest_path, sour_path);
 	send_msg(dest_path, strlen(dest_path));
-	if(open(sour_path, O_RDONLY) < 0) return;
+	if(fd = open(sour_path, O_RDONLY) < 0) return;
 	while(1){
 		int i = read(fd, message, BUFSIZE);
 		if(i <= 0) return;
@@ -93,20 +94,20 @@ void exec_command(){
 	if(strlen(command) > 0){
 		if(strcmp(command, "shell") == 0){
 			command_msg = RUN_SHELL;
-			send_msg(sock, &command_msg, 1)
-			run_shell(sock, opt_d);	//exception handling
+			send_msg(&command_msg, 1);
+			run_shell(opt_d);	//exception handling
 		}
 		else if(strcmp(command, "get") == 0){
 			command_msg = GET_FILE;
-			send_msg(sock, &command_msg, 1)
+			send_msg(&command_msg, 1);
 			//download a file from opt_s to opt_d;
-			get_file(sock, opt_d, opt_s);	//exception handling
+			get_file(opt_d, opt_s);	//exception handling
 		}
 		else if(strcmp(command, "put") == 0){
 			command_msg = PUT_FILE;
-			send_msg(sock, &command_msg, 1)
+			send_msg(&command_msg, 1);
 			//upload a file from opt_s to opt_d;
-			put_file(sock, opt_d, opt_s);	//exception handling
+			put_file(opt_d, opt_s);	//exception handling
 		}
 		else{
 			printf("unkonwn command");
@@ -115,10 +116,9 @@ void exec_command(){
 }
 
 int main(int argc, char *argv[]){
-	int mode_of_work = FORWORDCON;
 	int ch;
 	char command[100];
-
+    service_object = CLIENT;
 	while((ch = getopt(argc, argv, "rh:p:")) != -1){
 		switch(ch){
 			case 'r':

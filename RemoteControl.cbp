@@ -31,6 +31,23 @@
 		<Compiler>
 			<Add option="-Wall" />
 		</Compiler>
+		<Unit filename="CodeSpecification.txt" />
+		<Unit filename="ProgramAssum.txt" />
+		<Unit filename="client.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="client.h" />
+		<Unit filename="communication.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="communication.h" />
+		<Unit filename="remote_control.h" />
+		<Unit filename="resource.txt" />
+		<Unit filename="server.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="summary.txt" />
+		<Unit filename="unsolved.txt" />
 		<Extensions>
 			<code_completion />
 			<envvars />

@@ -1,6 +1,7 @@
 unsigned char buffer[BUFSIZE + 16 + 20];
 unsigned char message[BUFSIZE + 5];
 
+int service_object;
 int mode_of_work = FORWORDCON;
 unsigned int host;
 unsigned short port;
@@ -20,7 +21,7 @@ bool test_forward(){
 }
 
 int test_reserve(){
-	
+
 }
 
 bool test_connection(){
