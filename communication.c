@@ -1,5 +1,7 @@
-unsigned char buffer[BUFSIZE + 16 + 20];
-unsigned char message[BUFSIZE + 5];
+#include "communication.h"
+
+unsigned char buffer[BUFSIZE + 5] = {0};    //send_data,recv_data buffer
+unsigned char message[BUFSIZE + 5] = {0};
 
 int service_object;
 int mode_of_work = FORWORDCON;
@@ -31,7 +33,9 @@ bool test_connection(){
 		return test_forward();
 }
 
-void send_all(int len, int flags){
+//send a complete data
+//include error handing
+void send_data(int len, int flags){
 	int send_msg_len;
 	int cur = 0;
 	while(cur < len){
@@ -45,7 +49,7 @@ void send_all(int len, int flags){
 void send_msg(char *msg, int len){
 	int blk_len;
 	int i, j;
-	if(len <=0 || len > BUFSIZE)
+	if(len <= 0 || len > 0xffff || len > BUFSIZE - 2)
 		return;
 	buffer[0] = (len >> 8) & 0xff;
 	buffer[1] = len & 0xff;
@@ -63,7 +67,7 @@ void send_msg(char *msg, int len){
 	send_all(len + 2, 0);
 }
 
-void recv_all(int len, int flags){
+void recv_data(int len, int flags){
 	int recv_msg_len;
 	int cur = 0;
 	while(cur < len){
@@ -75,7 +79,7 @@ void recv_all(int len, int flags){
 void recv_msg(char *msg, int *plen){
 	recv_all(2, 0);
 	*plen = ((int)buffer[0] << 8) + (int)buffer[1];
-	if(*plen <= 0 || *plen > BUDSIZE) return ;
+	if(*plen <= 0 || *plen > BUFSIZE) return;
 	recv_all(*plen, 0);
 	memcpy(msg, buffer, *plen);
 }
