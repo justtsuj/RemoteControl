@@ -1,7 +1,7 @@
+#include "remote_control.h"
 #include "communication.h"
 
 unsigned char buffer[BUFSIZE + 5] = {0};    //send_data,recv_data buffer
-unsigned char message[BUFSIZE + 5] = {0};
 
 int service_object;
 int mode_of_work = FORWORDCON;
@@ -9,21 +9,54 @@ unsigned int host;
 unsigned short port;
 int client;
 
+void create_client_socket(){
+
+}
+
+void create_server_socket(){
+
+}
+
 bool test_forward(){
-	struct sockaddr_in serv_addr;
-	if((client = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-		return false;
-	memset(&serv_addr, 0, sizeof(servaddr))
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_addr.s_addr = htonl(host);
-	serv_addr.sin_port = htons(port);
-	if(connect(client, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
-		return false;
-	return true;
+    if(service_object == CLIENT){
+        struct sockaddr_in serv_addr;
+        if((client = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+            return false;
+        memset(&serv_addr, 0, sizeof(servaddr))
+        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_addr.s_addr = htonl(host);
+        serv_addr.sin_port = htons(port);
+        if(connect(client, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
+            return false;
+        return true;
+    }
+    else if(service_object == SERVER){
+        create_server_socket()
+    }
+	else{
+
+	}
 }
 
 int test_reserve(){
+    if(service_object == CLIENT){
+        struct sockaddr_in serv_addr;
+        if((client = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+            return false;
+        memset(&serv_addr, 0, sizeof(servaddr))
+        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_addr.s_addr = htonl(host);
+        serv_addr.sin_port = htons(port);
+        if(connect(client, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
+            return false;
+        return true;
+    }
+    else if(service_object == SERVER){
+        create_server_socket()
+    }
+	else{
 
+	}
 }
 
 bool test_connection(){

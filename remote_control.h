@@ -1,5 +1,3 @@
-#define CLIENT 0
-#define SERVER 1
 #define FORWARDCON 0
 #define REVERSECON 1
 #define BUFSIZE 100	//to be perfected
