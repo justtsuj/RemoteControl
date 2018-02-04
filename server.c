@@ -1,38 +1,39 @@
-#include "RemoteContral.h"
+#include "remote_control.h"
 
-void get_file(){
+bool get_file(){
     char file_path[BUFSIZE + 5] = {0};
     char message[BUFSIZE + 5] = {0};
     int file_path_len;
     int fd;
     int i, sum = 0;
-    recv_msg(&file_path, &file_path_len);
-    if(fd = open(sour_path, O_RDONLY) < 0) return;
+    recv_msg(file_path, &file_path_len);
+    if(fd = open(sour_path, O_RDONLY) < 0) return false;
     while(1){
 		int i = read(fd, message, BUFSIZE);
-		if(i <= 0) return;
+		if(i <= 0) return false;
 		send_msg(message, i);
 		sum += i;
 	}
 }
 
-void put_file(){
+bool put_file(){
     int fd;
 	int i, sum = 0;
 	int file_path_len;
 	char file_path[BUFSIZE + 5] = {0};
-	recv_msg(&file_path, &file_path_len);
-	if(fd = creat(dest_path, 0644) < 0) return; //to be perfected
+	recv_msg(file_path, &file_path_len);
+	if(fd = creat(dest_path, 0644) < 0) return false; //to be perfected
 	while(1){	//to be perfected
 		recv_msg(message, &i);	//to be perfected
-		if(i <= 0) return;
-		if(write(fd, message, i) != i) return; //exception handling;
+		if(i <= 0) return false;
+		if(write(fd, message, i) != i) return false; //exception handling;
 		sum += i;
 	}
 }
 
 void run_shell(){
     fd_set rd;
+    int len;
     char message[BUFSIZE + 5] = {0};
     while( 1 )
     {
@@ -47,7 +48,7 @@ void run_shell(){
         }
         if( FD_ISSET( 1, &rd ) )
         {
-            read( 1, message, BUFSIZE );
+            len = read( 1, message, BUFSIZE );
             send_msg( client, message, len );
         }
     }
@@ -66,9 +67,12 @@ void service(){
 
 int main(int argc, char *argv[]){
     int ch;
-    service_object = SERVER;
-    while((ch = getopt(argc, argv, "rh:p:")) != -1){
+    system = SERVER;
+    while((ch = getopt(argc, argv, "frh:p:")) != -1){
 		switch(ch){
+		    case 'f':
+				mode_of_work = FORWARDCON;
+				break;
 			case 'r':
 				mode_of_work = REVERSECON;
 				break;
@@ -82,7 +86,7 @@ int main(int argc, char *argv[]){
 				printf("usage\n");
 		}
 	}
-	if(test_connection() == FAILURE){
+	if(init_connection() == FAILURE){
 		printf("connect failure\n");
 	}
     else{

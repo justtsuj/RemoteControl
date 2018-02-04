@@ -1,7 +1,5 @@
-extern int mode_of_work;
-extern unsigned int host;
-extern unsigned short port;
+#define FAILURE false
 
-bool test_connection();
-void send_msg(char *msg, int len);
+extern int system
+
 
