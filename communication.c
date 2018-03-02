@@ -1,8 +1,12 @@
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include "remote_control.h"
 #include "communication.h"
 
 unsigned char buffer[BUFSIZE + 5] = {0};    //send_data,recv_data buffer
 
-int mode_of_work = FORWORDCON;
+int mode_of_work = FORWARDCON;
 unsigned int host;
 unsigned short port;
 int client;
@@ -13,7 +17,7 @@ bool create_client_socket(){
     struct sockaddr_in addr;
     if((client = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         return false;
-    memset(&serv_addr, 0, sizeof(servaddr))
+    memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(host);
     addr.sin_port = htons(port);
@@ -38,12 +42,12 @@ bool create_server_socket(){
         return false;
     //whether the output shoule be added
     if(client = accept(client, (struct sockaddr *)&clie_addr, &clie_addr_len) < 0)
-        reurn false;
+        return false;
     return true;
 }
 
 bool init_connection(){
-    if(system ^ mode_of_work)
+    if(systemm ^ mode_of_work)
         return create_client_socket();
     else
         return create_server_socket();
@@ -56,7 +60,7 @@ bool send_data(int len, int flags){
 	int cur = 0;
 	while(cur < len){
 		send_data_len = send(client, buffer + cur, len - cur, flags);
-		if(send_msg_len < 0)
+		if(send_data_len < 0)
 			return false;
 		cur += send_data_len;
 	}
@@ -67,7 +71,7 @@ bool send_msg(char *msg, int len){
 	int blk_len;
 	int i, j;
 	if(len <= 0 || len > 0xffff || len > BUFSIZE - 2)
-		return;
+		return false;
 	buffer[0] = (len >> 8) & 0xff;
 	buffer[1] = len & 0xff;
 	memcpy(buffer + 2, msg, len);	//header file string.h
@@ -100,7 +104,7 @@ bool recv_msg(char *msg, int *plen){
 	if(recv_data(2, 0) == FAILURE) return false;
 	*plen = ((int)buffer[0] << 8) + (int)buffer[1];
 	if(*plen <= 0 || *plen > BUFSIZE) return false;
-	if(recv_all(*plen, 0) == FAILURE) return false;
+	if(recv_data(*plen, 0) == FAILURE) return false;
 	memcpy(msg, buffer, *plen);
 }
 

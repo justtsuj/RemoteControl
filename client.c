@@ -1,9 +1,19 @@
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "remote_control.h"
 
 char command_line[BUFSIZE + 5];
 char command[BUFSIZE + 5];
 char opt_first[BUFSIZE + 5];
 char opt_second[BUFSIZE + 5];
+char message[BUFSIZE + 5];
 
 bool parse_command(){
 	int len = strlen(command_line);
@@ -76,9 +86,9 @@ bool run_shell(char *shell_command){
 	send_msg(shell_command, strlen(shell_command));
 	while(1){
 		FD_ZERO(&rd);
-		FD_SET(0, rd);
+		FD_SET(0, &rd);
 		FD_SET(client, &rd);
-		select(client + 1, &rd, NULL, NULL, NULL)
+		select(client + 1, &rd, NULL, NULL, NULL);
 		if(FD_ISSET(client, &rd)){
 			recv_msg(message, &len);
 			write(1, message, len);
@@ -131,8 +141,7 @@ bool exec_command(){
 
 int main(int argc, char *argv[]){
 	int ch;
-	char command[100];
-	system = CLIENT;
+	systemm = CLIENT;
 	while((ch = getopt(argc, argv, "frh:p:")) != -1){
 		switch(ch){
 		    case 'f':
@@ -152,7 +161,7 @@ int main(int argc, char *argv[]){
 		}
 	}
 
-	if(work() == FAILURE){
+	if(init_connection() == FAILURE){
 		printf("connect failure\n");
 	}else{
 		fgets(command_line, BUFSIZE - 1, stdin);

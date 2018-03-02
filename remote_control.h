@@ -1,3 +1,7 @@
+#ifndef REMOTE_CONTROL
+#define REMOTE_CONTROL
+
+#include <stdbool.h>
 #define CLIENT 0
 #define SERVER 1
 #define FORWARDCON 0
@@ -13,8 +17,9 @@ extern unsigned int host;
 extern unsigned short port;
 extern int client;
 
-int system;
+int systemm;
 
 bool init_connection(void);
 bool send_msg(char *msg, int len);
-bool recv_msg(char *msg, int *plen)
+bool recv_msg(char *msg, int *plen);
+#endif

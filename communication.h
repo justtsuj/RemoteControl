@@ -1,5 +1,5 @@
 #define FAILURE false
 
-extern int system
+extern int systemm;
 
 
