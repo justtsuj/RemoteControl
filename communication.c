@@ -1,14 +1,18 @@
 #include <string.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <stdio.h>
+#include <errno.h>
+#include <unistd.h>
 #include "remote_control.h"
 #include "communication.h"
 
 unsigned char buffer[BUFSIZE + 5] = {0};    //send_data,recv_data buffer
-
+int mode_of_sys;
 int mode_of_work = FORWARDCON;
 unsigned int host;
-unsigned short port;
+unsigned short port = 7586;
 int client;
 
 
@@ -19,7 +23,7 @@ bool create_client_socket(){
         return false;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(host);
+    addr.sin_addr.s_addr = host;
     addr.sin_port = htons(port);
     if(connect(client, (struct sockaddr*)&addr, sizeof(addr)) < 0)
         return false;
@@ -31,26 +35,33 @@ bool create_server_socket(){
     int server;
     struct sockaddr_in serv_addr, clie_addr;
     int clie_addr_len;
-    if(server = socket(AF_INET, SOCK_STREAM, 0) < 0)
+    if((server = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         return false;
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
     serv_addr.sin_addr.s_addr = INADDR_ANY;
-    if(bind(server, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+	if(bind(server, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0){
+		close(server);	//you ya
         return false;
-    if(listen(server, 5 ) < 0)
+	}
+    if(listen(server, 5 ) < 0){
+		close(server);
         return false;
+	}
     //whether the output shoule be added
-    if(client = accept(client, (struct sockaddr *)&clie_addr, &clie_addr_len) < 0)
+    if((client = accept(server, (struct sockaddr *)&clie_addr, &clie_addr_len)) < 0){
+		close(server);
         return false;
+	}
+	close(server);
     return true;
 }
 
 bool init_connection(){
-    if(systemm ^ mode_of_work)
-        return create_client_socket();
-    else
+    if(mode_of_sys ^ mode_of_work)
         return create_server_socket();
+    else
+        return create_client_socket();
 }
 
 //send a complete data

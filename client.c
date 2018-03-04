@@ -1,19 +1,25 @@
 #include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/select.h>
-#include <sys/time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <arpa/inet.h>
 #include "remote_control.h"
+#include "communication.h"
 
 char command_line[BUFSIZE + 5];
 char command[BUFSIZE + 5];
 char opt_first[BUFSIZE + 5];
 char opt_second[BUFSIZE + 5];
 char message[BUFSIZE + 5];
+extern int mode_of_sys;
+extern int mode_of_work;
+extern unsigned int host;
+extern unsigned short port;
+extern int client;
+
+
 
 bool parse_command(){
 	int len = strlen(command_line);
@@ -141,7 +147,7 @@ bool exec_command(){
 
 int main(int argc, char *argv[]){
 	int ch;
-	systemm = CLIENT;
+	mode_of_sys = CLIENT;
 	while((ch = getopt(argc, argv, "frh:p:")) != -1){
 		switch(ch){
 		    case 'f':
@@ -151,7 +157,7 @@ int main(int argc, char *argv[]){
 				mode_of_work = REVERSECON;
 				break;
 			case 'h':
-				host = atoi(optarg);
+				host = inet_addr(optarg);
 				break;
 			case 'p':
 				port = atoi(optarg);

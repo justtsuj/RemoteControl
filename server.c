@@ -1,4 +1,18 @@
+#include <unistd.h>
+#include <stdio.h>
+#include <sys/select.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
 #include "remote_control.h"
+#include "communication.h"
+
+extern int mode_of_sys;
+extern int mode_of_work;
+extern unsigned int host;
+extern unsigned short port;
+extern int client;
+char message[BUFSIZE + 5];
 
 bool get_file(){
     char file_path[BUFSIZE + 5] = {0};
@@ -7,7 +21,7 @@ bool get_file(){
     int fd;
     int i, sum = 0;
     recv_msg(file_path, &file_path_len);
-    if(fd = open(sour_path, O_RDONLY) < 0) return false;
+    if(fd = open(file_path, O_RDONLY) < 0) return false;
     while(1){
 		int i = read(fd, message, BUFSIZE);
 		if(i <= 0) return false;
@@ -22,7 +36,7 @@ bool put_file(){
 	int file_path_len;
 	char file_path[BUFSIZE + 5] = {0};
 	recv_msg(file_path, &file_path_len);
-	if(fd = creat(dest_path, 0644) < 0) return false; //to be perfected
+	if(fd = creat(file_path, 0644) < 0) return false; //to be perfected
 	while(1){	//to be perfected
 		recv_msg(message, &i);	//to be perfected
 		if(i <= 0) return false;
@@ -49,26 +63,36 @@ void run_shell(){
         if( FD_ISSET( 1, &rd ) )
         {
             len = read( 1, message, BUFSIZE );
-            send_msg( client, message, len );
+            send_msg(message, len);
         }
     }
 }
 
 void service(){
     char command_msg;
-    recv_msg(&command_msg, 1);
+	int msg_len;
+    recv_msg(&command_msg, &msg_len);
+	printf("%d\n", command_msg);
     switch(command_msg){
-    case GET_FILE:get_file();break;
-    case PUT_FILE:put_file();break;
-    case RUN_SHELL:run_shell();break;
-    default:
+    	case GET_FILE:get_file();break;
+    	case PUT_FILE:put_file();break;
+    	case RUN_SHELL:run_shell();break;
+    	default:;
     }
 }
 
+void usage(){
+	printf("\t-f\tforward connection,default mode.\n");
+	printf("\t-r\treverse connection.\n");
+	printf("\t-i\tip address.\n");
+	printf("\t-p\tport.\n");
+	printf("\t-h\tprint help message.");
+	exit(0);
+}
 int main(int argc, char *argv[]){
     int ch;
-    system = SERVER;
-    while((ch = getopt(argc, argv, "frh:p:")) != -1){
+    mode_of_sys = SERVER;
+    while((ch = getopt(argc, argv, "frhi:p:")) != -1){
 		switch(ch){
 		    case 'f':
 				mode_of_work = FORWARDCON;
@@ -76,14 +100,17 @@ int main(int argc, char *argv[]){
 			case 'r':
 				mode_of_work = REVERSECON;
 				break;
-			case 'h':
-				host = atoi(optarg);
+			case 'i':
+				host = inet_addr(optarg);
 				break;
 			case 'p':
 				port = atoi(optarg);
 				break;
+			case 'h':
+				usage();
+				break;
 			default:
-				printf("usage\n");
+				printf("Existence of unidentified parameters\n");
 		}
 	}
 	if(init_connection() == FAILURE){
