@@ -23,13 +23,16 @@ extern int client;
 
 bool parse_command(){
 	int len = strlen(command_line);
-	int i, j = 0;
+	int i = 0, j;
 	memset(command, 0, sizeof(command));
 	memset(opt_first, 0, sizeof(opt_first));
 	memset(opt_second, 0, sizeof(opt_second));
-	for(i = 0; i < len && command_line[i] != ' '; ++i, ++j){
+	--len;	//filter '\n'
+	for(j = 0; i < len && command_line[i] != ' '; ++i, ++j){
 		command[j] = command_line[i];
 	}
+	if(strlen(command) == 0)
+		return false;
 	while(i < len && command_line[i] == ' ') ++i;	//filter space
 	for(j = 0; i < len && command_line[i] != ' '; ++i, ++j){
 		opt_first[j] = command_line[i];
@@ -38,17 +41,15 @@ bool parse_command(){
 	for(j = 0; i < len && command_line[i] != ' '; ++i, ++j){
 		opt_second[j] = command_line[i];
 	}
-	if(strlen(command))
-        return true;
-    else
-        return false;
+    return true;
 	//exception handling;
 }
 
 bool get_file(char *dest_path, char *sour_path){	//point out the meaning of parameter
 	char *tmp;
 	int fd;
-	int i, sum = 0;
+	int i, j, sum = 0;
+	//printf("%s\n", sour_path);
 	send_msg(sour_path, strlen(sour_path));
 	tmp = strrchr(sour_path, '/');
 	if(tmp == NULL)
@@ -58,14 +59,20 @@ bool get_file(char *dest_path, char *sour_path){	//point out the meaning of para
 	if(dest_path[len - 1] != '/')
 		dest_path[len] = '/';*/
 	strcat(dest_path, tmp);
+	//printf("%s\n", dest_path);
 	fd = creat(dest_path, 0644);    //to be perfected
 	if(fd < 0) return false;	//to be perfected
 	while(1){	//to be perfected
 		recv_msg(message, &i);	//to be perfected
+		printf("%d\n", i);
 		if(i <= 0) return false;
-		if(write(fd, message, i) != i) return false; //exception handling;
+		j = write(fd, message, i);
+		if(j != i) return false; //exception handling;
+		printf("%d\n", j);
 		sum += i;
 	}
+	printf("here\n");
+	return true;
 }
 
 bool put_file(char *dest_path, char *sour_path){
@@ -111,38 +118,40 @@ bool run_shell(char *shell_command){
 bool exec_command(){
 	char command_msg;
 	parse_command();
-	if(strlen(command) > 0){
-		if(strcmp(command, "shell") == 0){
-            if(strlen(opt_first) == 0)
-                strcat(opt_first, "exec bash --login");
-			command_msg = RUN_SHELL;
-			send_msg(&command_msg, 1);
-			run_shell(opt_first);	//exception handling
-		}
-		else if(strcmp(command, "get") == 0){
-            if(strlen(opt_first) == 0) return false;
-			command_msg = GET_FILE;
-			send_msg(&command_msg, 1);
-			//download a file from opt_s to opt_d;
-			if(strlen(opt_second))
-                get_file(opt_first, opt_second);	//exception handling
-            else
-                get_file("./", opt_first);
-		}
-		else if(strcmp(command, "put") == 0){
-            if(strlen(opt_first) == 0) return false;
-			command_msg = PUT_FILE;
-			send_msg(&command_msg, 1);
-			//upload a file from opt_s to opt_d;
-			if(strlen(opt_second))
-                put_file(opt_first, opt_second);	//exception handling
-            else
-                put_file("./", opt_first);
-		}
-		else{
-			printf("unkonwn command");
+	if(strcmp(command, "shell") == 0){
+    	if(strlen(opt_first) == 0)
+        	strcpy(opt_first, "exec bash --login");
+		command_msg = RUN_SHELL;
+		send_msg(&command_msg, 1);
+		run_shell(opt_first);	//exception handling
+	}
+	else if(strcmp(command, "get") == 0){
+        if(strlen(opt_first) == 0) return false;
+		command_msg = GET_FILE;
+		send_msg(&command_msg, 1);
+		//download a file from opt_s to opt_d;
+		if(strlen(opt_second))
+            get_file(opt_first, opt_second);	//exception handling
+        else{
+			strcat(opt_second, "./");
+            get_file(opt_second, opt_first);
 		}
 	}
+	else if(strcmp(command, "put") == 0){
+        if(strlen(opt_first) == 0) return false;
+		command_msg = PUT_FILE;
+		send_msg(&command_msg, 1);
+		//upload a file from opt_s to opt_d;
+		if(strlen(opt_second))
+            put_file(opt_first, opt_second);	//exception handling
+        else{
+			strcat(opt_second, "./");
+            put_file(opt_second, opt_first);
+		}
+	}
+	else
+		printf("unkonwn command");
+	return true;
 }
 
 int main(int argc, char *argv[]){

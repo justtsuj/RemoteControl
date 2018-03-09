@@ -21,13 +21,18 @@ bool get_file(){
     int fd;
     int i, sum = 0;
     recv_msg(file_path, &file_path_len);
-    if(fd = open(file_path, O_RDONLY) < 0) return false;
+	file_path[file_path_len] = '\0';
+	//printf("%s\n", file_path);
+    if((fd = open(file_path, O_RDONLY)) < 0) return false;
+	printf("here\n");
     while(1){
-		int i = read(fd, message, BUFSIZE);
+		i = read(fd, message, BUFSIZE);
+		printf("%d\n", i);
 		if(i <= 0) return false;
 		send_msg(message, i);
 		sum += i;
 	}
+	return true;
 }
 
 bool put_file(){
@@ -72,7 +77,7 @@ void service(){
     char command_msg;
 	int msg_len;
     recv_msg(&command_msg, &msg_len);
-	printf("%d\n", command_msg);
+	//printf("%d\n", command_msg);
     switch(command_msg){
     	case GET_FILE:get_file();break;
     	case PUT_FILE:put_file();break;
@@ -89,6 +94,7 @@ void usage(){
 	printf("\t-h\tprint help message.");
 	exit(0);
 }
+
 int main(int argc, char *argv[]){
     int ch;
     mode_of_sys = SERVER;
