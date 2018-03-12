@@ -20,14 +20,17 @@ bool get_file(){
     int file_path_len;
     int fd;
     int i, sum = 0;
+	struct stat s_buf;
     recv_msg(file_path, &file_path_len);
 	file_path[file_path_len] = '\0';
+	stat(file_path,&s_buf);
+	if(!S_ISREG(s_buf.st_mode)) return false;
 	//printf("%s\n", file_path);
+	//can't find the specify file case
     if((fd = open(file_path, O_RDONLY)) < 0) return false;
-	printf("here\n");
     while(1){
 		i = read(fd, message, BUFSIZE);
-		printf("%d\n", i);
+		//printf("%d\n", i);
 		if(i <= 0) return false;
 		send_msg(message, i);
 		sum += i;

@@ -81,7 +81,7 @@ bool send_data(int len, int flags){
 bool send_msg(char *msg, int len){
 	int blk_len;
 	int i, j;
-	if(len <= 0 || len > 0xffff || len > BUFSIZE - 2)
+	if(len <= 0 || len > BUFSIZE)
 		return false;
 	buffer[0] = (len >> 8) & 0xff;
 	buffer[1] = len & 0xff;
@@ -104,18 +104,20 @@ bool recv_data(int len, int flags){
 	int cur = 0;
 	while(cur < len){
 		recv_msg_len = recv(client, buffer + cur, len - cur, flags);
-		if(recv_msg_len < 0)
+		if(recv_msg_len <= 0)
 			return false;
 		cur += recv_msg_len;
 	}
 	return true;
 }
 
+//set max message length
 bool recv_msg(char *msg, int *plen){
 	if(recv_data(2, 0) == FAILURE) return false;
 	*plen = ((int)buffer[0] << 8) + (int)buffer[1];
 	if(*plen <= 0 || *plen > BUFSIZE) return false;
 	if(recv_data(*plen, 0) == FAILURE) return false;
 	memcpy(msg, buffer, *plen);
+	return true;
 }
 

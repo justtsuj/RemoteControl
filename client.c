@@ -48,13 +48,18 @@ bool parse_command(){
 bool get_file(char *dest_path, char *sour_path){	//point out the meaning of parameter
 	char *tmp;
 	int fd;
-	int i, j, sum = 0;
+	int i, j, sum = 0, tmp;
+	struct stat s_buf;
+
 	//printf("%s\n", sour_path);
 	send_msg(sour_path, strlen(sour_path));
+	stat(dest_path,&s_buf);
+	if(!S_ISDIR(s_buf.st_mode)) return false;
+	if(dest_path[strlen(dest_path)] != '/')
+		strcat(dest_path, "/");
 	tmp = strrchr(sour_path, '/');
 	if(tmp == NULL)
-		return false;
-	++tmp;
+		++tmp;
 	/*len = strlen(dest_path);
 	if(dest_path[len - 1] != '/')
 		dest_path[len] = '/';*/
@@ -63,15 +68,15 @@ bool get_file(char *dest_path, char *sour_path){	//point out the meaning of para
 	fd = creat(dest_path, 0644);    //to be perfected
 	if(fd < 0) return false;	//to be perfected
 	while(1){	//to be perfected
-		recv_msg(message, &i);	//to be perfected
-		printf("%d\n", i);
+		if(recv_msg(message, &i) == FAILURE) break;	//to be perfected
+		//printf("%d\n", i);
 		if(i <= 0) return false;
 		j = write(fd, message, i);
 		if(j != i) return false; //exception handling;
-		printf("%d\n", j);
+		//printf("%d\n", j);
 		sum += i;
 	}
-	printf("here\n");
+	printf("%d bytes recived\n", sum);
 	return true;
 }
 
@@ -81,7 +86,7 @@ bool put_file(char *dest_path, char *sour_path){
 	char *tmp = strrchr(sour_path, '/');
 	if(tmp == NULL)
 		return false;
-    ++tmp;
+	++tmp;
 	strcat(dest_path, tmp);
 	send_msg(dest_path, strlen(dest_path));
 	if(fd = open(sour_path, O_RDONLY) < 0) return false;
