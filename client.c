@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <sys/stat.h>
 #include "remote_control.h"
 #include "communication.h"
 
@@ -48,18 +49,21 @@ bool parse_command(){
 bool get_file(char *dest_path, char *sour_path){	//point out the meaning of parameter
 	char *tmp;
 	int fd;
-	int i, j, sum = 0, tmp;
+	int i, j, sum = 0;
 	struct stat s_buf;
 
 	//printf("%s\n", sour_path);
 	send_msg(sour_path, strlen(sour_path));
 	stat(dest_path,&s_buf);
 	if(!S_ISDIR(s_buf.st_mode)) return false;
-	if(dest_path[strlen(dest_path)] != '/')
+	if(dest_path[strlen(dest_path) - 1] != '/')
 		strcat(dest_path, "/");
+	//printf("%s\n", dest_path);
 	tmp = strrchr(sour_path, '/');
-	if(tmp == NULL)
+	if(tmp)
 		++tmp;
+	else
+		tmp = sour_path;
 	/*len = strlen(dest_path);
 	if(dest_path[len - 1] != '/')
 		dest_path[len] = '/';*/

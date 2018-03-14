@@ -57,6 +57,10 @@ bool create_server_socket(){
     return true;
 }
 
+bool close_socket(){
+	
+}
+
 bool init_connection(){
     if(mode_of_sys ^ mode_of_work)
         return create_server_socket();

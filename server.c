@@ -78,15 +78,20 @@ void run_shell(){
 
 void service(){
     char command_msg;
-	int msg_len;
+	int msg_len, flag;
     recv_msg(&command_msg, &msg_len);
 	//printf("%d\n", command_msg);
-    switch(command_msg){
-    	case GET_FILE:get_file();break;
-    	case PUT_FILE:put_file();break;
-    	case RUN_SHELL:run_shell();break;
-    	default:;
-    }
+	while(1){
+    	switch(command_msg){
+    		case GET_FILE:flag = get_file();break;
+    		case PUT_FILE:flag = put_file();break;
+    		case RUN_SHELL:flag = run_shell();break;
+    		default:;
+    	}
+		close(client);
+		if(flag == false)
+			close(server);
+	}
 }
 
 void usage(){
