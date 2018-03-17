@@ -13,59 +13,98 @@ int mode_of_sys;
 int mode_of_work = FORWARDCON;
 unsigned int host;
 unsigned short port = 7586;
-int client;
+int client, server;
 
 
 //whether to close the socket when a connection fails
 bool create_client_socket(){
-    struct sockaddr_in addr;
-    if((client = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-        return false;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = host;
-    addr.sin_port = htons(port);
-    if(connect(client, (struct sockaddr*)&addr, sizeof(addr)) < 0)
-        return false;
-    return true;
+	struct sockaddr_in addr;
+	if((client = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+		return false;
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = host;
+	addr.sin_port = htons(port);
+	if(connect(client, (struct sockaddr*)&addr, sizeof(addr)) < 0){
+		close(client);
+		return false;
+	}
+	return true;
 }
 
 //socket setting
 bool create_server_socket(){
-    int server;
-    struct sockaddr_in serv_addr, clie_addr;
-    int clie_addr_len;
-    if((server = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-        return false;
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(port);
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
+	struct sockaddr_in serv_addr, clie_addr;
+	int clie_addr_len;
+	if((server = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+		return false;
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_port = htons(port);
+	serv_addr.sin_addr.s_addr = INADDR_ANY;
 	if(bind(server, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0){
 		close(server);	//you ya
-        return false;
+		return false;
 	}
-    if(listen(server, 5 ) < 0){
+	if(listen(server, 5 ) < 0){
 		close(server);
-        return false;
+		return false;
 	}
-    //whether the output shoule be added
-    if((client = accept(server, (struct sockaddr *)&clie_addr, &clie_addr_len)) < 0){
+	//whether the output shoule be added
+	if((client = accept(server, (struct sockaddr *)&clie_addr, &clie_addr_len)) < 0){
 		close(server);
-        return false;
+		return false;
 	}
+    	return true;
+}
+
+
+
+bool reset_server_socket(){
+	struct sockaddr_in clie_addr;
+	int clie_addr_len;
+	close(client);
+	if((client = accept(server, (struct sockaddr *)&clie_addr, &clie_addr_len)) < 0){
+		close(server);
+		return false;
+	}
+    	return true;
+}
+
+bool reset_client_socket(){
+	close(client);
+	return true;
+}
+
+bool close_server_socket(){
+	close(client);
 	close(server);
-    return true;
+	return true;
+}
+
+bool close_client_socket(){
+	close(client);
+	return true;
 }
 
 bool close_socket(){
-	
+	if(mode_of_sys ^ mode_of_work)
+		return close_server_socket();
+	else
+		return close_client_socket();
+}
+
+bool reset_connection(){
+	if(mode_of_sys ^ mode_of_work)
+		return reset_server_socket();
+	else
+		return reset_client_socket();
 }
 
 bool init_connection(){
-    if(mode_of_sys ^ mode_of_work)
-        return create_server_socket();
-    else
-        return create_client_socket();
+	if(mode_of_sys ^ mode_of_work)
+		return create_server_socket();
+	else
+		return create_client_socket();
 }
 
 //send a complete data
@@ -119,6 +158,7 @@ bool recv_data(int len, int flags){
 bool recv_msg(char *msg, int *plen){
 	if(recv_data(2, 0) == FAILURE) return false;
 	*plen = ((int)buffer[0] << 8) + (int)buffer[1];
+	//printf(">%d\n", *plen);
 	if(*plen <= 0 || *plen > BUFSIZE) return false;
 	if(recv_data(*plen, 0) == FAILURE) return false;
 	memcpy(msg, buffer, *plen);

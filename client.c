@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
-#include <sys/stat.h>
 #include "remote_control.h"
 #include "communication.h"
 
@@ -29,17 +28,17 @@ bool parse_command(){
 	memset(opt_first, 0, sizeof(opt_first));
 	memset(opt_second, 0, sizeof(opt_second));
 	--len;	//filter '\n'
-	for(j = 0; i < len && command_line[i] != ' '; ++i, ++j){
+	for(j = 0; j < BUFSIZE && i < len && command_line[i] != ' '; ++i, ++j){
 		command[j] = command_line[i];
 	}
 	if(strlen(command) == 0)
 		return false;
 	while(i < len && command_line[i] == ' ') ++i;	//filter space
-	for(j = 0; i < len && command_line[i] != ' '; ++i, ++j){
+	for(j = 0; j < BUFSIZE && i < len && command_line[i] != ' '; ++i, ++j){
 		opt_first[j] = command_line[i];
 	}
 	while(i < len && command_line[i] == ' ') ++i;
-	for(j = 0; i < len && command_line[i] != ' '; ++i, ++j){
+	for(j = 0; j < BUFSIZE && i < len && command_line[i] != ' '; ++i, ++j){
 		opt_second[j] = command_line[i];
 	}
     return true;
@@ -60,17 +59,14 @@ bool get_file(char *dest_path, char *sour_path){	//point out the meaning of para
 		strcat(dest_path, "/");
 	//printf("%s\n", dest_path);
 	tmp = strrchr(sour_path, '/');
-	if(tmp)
-		++tmp;
-	else
-		tmp = sour_path;
+	if(tmp) ++tmp;
+	else tmp = sour_path;
 	/*len = strlen(dest_path);
 	if(dest_path[len - 1] != '/')
 		dest_path[len] = '/';*/
-	strcat(dest_path, tmp);
+	strcat(dest_path, tmp);	//buffer overflow
 	//printf("%s\n", dest_path);
-	fd = creat(dest_path, 0644);    //to be perfected
-	if(fd < 0) return false;	//to be perfected
+	if((fd = creat(dest_path, 0644)) < 0) return false;	//to be perfected
 	while(1){	//to be perfected
 		if(recv_msg(message, &i) == FAILURE) break;	//to be perfected
 		//printf("%d\n", i);
@@ -81,25 +77,34 @@ bool get_file(char *dest_path, char *sour_path){	//point out the meaning of para
 		sum += i;
 	}
 	printf("%d bytes recived\n", sum);
+	close(fd);
 	return true;
 }
 
 bool put_file(char *dest_path, char *sour_path){
-	int sum = 0;
+	int i, sum = 0;
 	int fd;
+	struct stat s_buf;
+	stat(sour_path, &s_buf);
+	if(!S_ISREG(s_buf.st_mode)) return false;
+	if(dest_path[strlen(dest_path) - 1] != '/')
+		strcat(dest_path, "/");
 	char *tmp = strrchr(sour_path, '/');
-	if(tmp == NULL)
-		return false;
-	++tmp;
-	strcat(dest_path, tmp);
+	if(tmp == NULL) tmp = sour_path;
+	else ++tmp;
+	strcat(dest_path, tmp);	//buffer overflow
 	send_msg(dest_path, strlen(dest_path));
-	if(fd = open(sour_path, O_RDONLY) < 0) return false;
+	if((fd = open(sour_path, O_RDONLY)) < 0) return false;
+	printf("%s\n", sour_path);
 	while(1){
-		int i = read(fd, message, BUFSIZE);
+		i = read(fd, message, BUFSIZE);
+		//printf("%d\n", i);
 		if(i <= 0) return false;
 		send_msg(message, i);
 		sum += i;
 	}
+	close(fd);
+	return true;
 }
 
 bool run_shell(char *shell_command){
@@ -128,34 +133,35 @@ bool exec_command(){
 	char command_msg;
 	parse_command();
 	if(strcmp(command, "shell") == 0){
-    	if(strlen(opt_first) == 0)
-        	strcpy(opt_first, "exec bash --login");
-		command_msg = RUN_SHELL;
-		send_msg(&command_msg, 1);
-		run_shell(opt_first);	//exception handling
+		if(strlen(opt_first) == 0){
+			strcpy(opt_first, "exec bash --login");
+			command_msg = RUN_SHELL;
+			send_msg(&command_msg, 1);
+			run_shell(opt_first);	//exception handling
+		}
 	}
 	else if(strcmp(command, "get") == 0){
-        if(strlen(opt_first) == 0) return false;
+        	if(strlen(opt_first) == 0) return false;
 		command_msg = GET_FILE;
 		send_msg(&command_msg, 1);
 		//download a file from opt_s to opt_d;
 		if(strlen(opt_second))
-            get_file(opt_first, opt_second);	//exception handling
-        else{
-			strcat(opt_second, "./");
-            get_file(opt_second, opt_first);
+            		get_file(opt_first, opt_second);	//exception handling
+        	else{
+			strcpy(opt_second, "./");
+			get_file(opt_second, opt_first);
 		}
 	}
 	else if(strcmp(command, "put") == 0){
-        if(strlen(opt_first) == 0) return false;
+		if(strlen(opt_first) == 0) return false;
 		command_msg = PUT_FILE;
 		send_msg(&command_msg, 1);
 		//upload a file from opt_s to opt_d;
 		if(strlen(opt_second))
-            put_file(opt_first, opt_second);	//exception handling
-        else{
-			strcat(opt_second, "./");
-            put_file(opt_second, opt_first);
+			put_file(opt_first, opt_second);	//exception handling
+		else{
+			strcpy(opt_second, "./");
+			put_file(opt_second, opt_first);
 		}
 	}
 	else
@@ -188,7 +194,7 @@ int main(int argc, char *argv[]){
 	if(init_connection() == FAILURE){
 		printf("connect failure\n");
 	}else{
-		fgets(command_line, BUFSIZE - 1, stdin);
+		fgets(command_line, BUFSIZE, stdin);
 		exec_command();
 	}
 	return 0;

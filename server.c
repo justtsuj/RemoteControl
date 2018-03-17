@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <pty.h>
 #include "remote_control.h"
 #include "communication.h"
 
@@ -15,82 +16,102 @@ extern int client;
 char message[BUFSIZE + 5];
 
 bool get_file(){
-    char file_path[BUFSIZE + 5] = {0};
-    char message[BUFSIZE + 5] = {0};
-    int file_path_len;
-    int fd;
-    int i, sum = 0;
+	char file_path[BUFSIZE + 5] = {0};
+	char message[BUFSIZE + 5] = {0};
+	int file_path_len;
+	int fd;
+	int i, sum = 0;
 	struct stat s_buf;
-    recv_msg(file_path, &file_path_len);
+	recv_msg(file_path, &file_path_len);
 	file_path[file_path_len] = '\0';
-	stat(file_path,&s_buf);
+	stat(file_path, &s_buf);
 	if(!S_ISREG(s_buf.st_mode)) return false;
 	//printf("%s\n", file_path);
 	//can't find the specify file case
-    if((fd = open(file_path, O_RDONLY)) < 0) return false;
-    while(1){
+	if((fd = open(file_path, O_RDONLY)) < 0) return false;
+	while(1){
 		i = read(fd, message, BUFSIZE);
 		//printf("%d\n", i);
 		if(i <= 0) return false;
 		send_msg(message, i);
 		sum += i;
 	}
+	close(fd);
 	return true;
 }
 
 bool put_file(){
-    int fd;
+	int fd;
 	int i, sum = 0;
 	int file_path_len;
+	int flag;
 	char file_path[BUFSIZE + 5] = {0};
 	recv_msg(file_path, &file_path_len);
-	if(fd = creat(file_path, 0644) < 0) return false; //to be perfected
+	file_path[file_path_len] = '\0';
+	//printf("%s\n", file_path);
+	if((fd = creat(file_path, 0644)) < 0){
+		printf("%d\n", fd);	
+		return false; //to be perfected
+	}
 	while(1){	//to be perfected
-		recv_msg(message, &i);	//to be perfected
-		if(i <= 0) return false;
+		flag = recv_msg(message, &i);	//to be perfected
+		//printf("%d\n", i);
+		if(flag == false || i <= 0) return false;
 		if(write(fd, message, i) != i) return false; //exception handling;
 		sum += i;
 	}
+	close(fd);
+	return true;
 }
 
-void run_shell(){
-    fd_set rd;
-    int len;
-    char message[BUFSIZE + 5] = {0};
-    while( 1 )
-    {
-        FD_ZERO( &rd );
-        FD_SET( client, &rd );
-        FD_SET( 1, &rd );
-        if(select(client + 1, &rd, NULL, NULL, NULL) < 0)
-            return;
-        if( FD_ISSET( client, &rd ) ){
-            recv_msg( message, &len );
-            write( 0, message, len );
-        }
-        if( FD_ISSET( 1, &rd ) )
-        {
-            len = read( 1, message, BUFSIZE );
-            send_msg(message, len);
-        }
-    }
+bool run_shell(){
+	fd_set rd;
+	int len;
+	int pty, tty, pid;
+	char message[BUFSIZE + 5] = {0};
+	if(openpty(&pty, &tty, NULL, NULL, NULL ) < 0)
+		return false;
+	if(recv_msg(message, &len) == false) return false;
+	message[len] = '\0';
+	if((pid = fork()) < 0) return false;
+	if(setsid() < 0) return false;
+	if(ioctl( tty, TIOCSCTTY, NULL ) < 0) return false;
+	dup2( tty, 0 );
+	dup2( tty, 1 );
+	dup2( tty, 2 );
+	if( tty > 2 ) close( tty );
+	execl("/bin/sh", "sh", "-c", message, (char *)0);
+	while(1){
+		FD_ZERO(&rd);
+		FD_SET(client, &rd);
+		FD_SET(pty, &rd);
+		if(select(client + 1, &rd, NULL, NULL, NULL) < 0)
+			return false;
+		if(FD_ISSET(client, &rd)){
+			if(recv_msg(message, &len) == false) return false;
+			write(pty, message, len);
+		}
+		if(FD_ISSET(pty, &rd)){
+			len = read(pty, message, BUFSIZE);
+			send_msg(message, len);
+		}
+	}
+	return true;
 }
 
 void service(){
-    char command_msg;
+	char command_msg;
 	int msg_len, flag;
-    recv_msg(&command_msg, &msg_len);
 	//printf("%d\n", command_msg);
 	while(1){
-    	switch(command_msg){
-    		case GET_FILE:flag = get_file();break;
-    		case PUT_FILE:flag = put_file();break;
-    		case RUN_SHELL:flag = run_shell();break;
-    		default:;
-    	}
-		close(client);
-		if(flag == false)
-			close(server);
+		recv_msg(&command_msg, &msg_len);
+		switch(command_msg){
+			case GET_FILE:flag = get_file();break;
+			case PUT_FILE:flag = put_file();break;
+			case RUN_SHELL:flag = run_shell();break;
+			default:;
+		}
+		reset_connection();
 	}
 }
 
