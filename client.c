@@ -117,11 +117,11 @@ bool run_shell(char *shell_command){
 		FD_SET(client, &rd);
 		select(client + 1, &rd, NULL, NULL, NULL);
 		if(FD_ISSET(client, &rd)){
-			recv_msg(message, &len);
+			if(recv_msg(message, &len) == false) return false;
 			write(1, message, len);
 		}
 		if(FD_ISSET(0, &rd)){
-			len = read(0, message, BUFSIZE);
+			if((len = read(0, message, BUFSIZE)) <= 0) return false;
 			send_msg(message, len);
 		}
 	}
@@ -133,12 +133,11 @@ bool exec_command(){
 	char command_msg;
 	parse_command();
 	if(strcmp(command, "shell") == 0){
-		if(strlen(opt_first) == 0){
+		if(strlen(opt_first) == 0)
 			strcpy(opt_first, "exec bash --login");
-			command_msg = RUN_SHELL;
-			send_msg(&command_msg, 1);
-			run_shell(opt_first);	//exception handling
-		}
+		command_msg = RUN_SHELL;
+		send_msg(&command_msg, 1);
+		run_shell(opt_first);	//exception handling
 	}
 	else if(strcmp(command, "get") == 0){
         	if(strlen(opt_first) == 0) return false;

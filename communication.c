@@ -86,7 +86,7 @@ bool close_client_socket(){
 	return true;
 }
 
-bool close_socket(){
+bool close_connection(){
 	if(mode_of_sys ^ mode_of_work)
 		return close_server_socket();
 	else

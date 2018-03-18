@@ -68,33 +68,47 @@ bool run_shell(){
 	fd_set rd;
 	int len;
 	int pty, tty, pid;
+	int tmp;
 	char message[BUFSIZE + 5] = {0};
 	if(openpty(&pty, &tty, NULL, NULL, NULL ) < 0)
 		return false;
 	if(recv_msg(message, &len) == false) return false;
 	message[len] = '\0';
+	printf("%s\n", message);
 	if((pid = fork()) < 0) return false;
-	if(setsid() < 0) return false;
-	if(ioctl( tty, TIOCSCTTY, NULL ) < 0) return false;
-	dup2( tty, 0 );
-	dup2( tty, 1 );
-	dup2( tty, 2 );
-	if( tty > 2 ) close( tty );
-	execl("/bin/sh", "sh", "-c", message, (char *)0);
-	while(1){
-		FD_ZERO(&rd);
-		FD_SET(client, &rd);
-		FD_SET(pty, &rd);
-		if(select(client + 1, &rd, NULL, NULL, NULL) < 0)
-			return false;
-		if(FD_ISSET(client, &rd)){
-			if(recv_msg(message, &len) == false) return false;
-			write(pty, message, len);
+	if(pid){
+		close(tty);
+		while(1){
+			FD_ZERO(&rd);
+			FD_SET(client, &rd);
+			FD_SET(pty, &rd);
+			tmp = (pty >= client ? pty : client);
+			if(select(tmp + 1, &rd, NULL, NULL, NULL) < 0)
+				return false;
+			if(FD_ISSET(client, &rd)){
+				if(recv_msg(message, &len) == false) return false;
+				//message[len] = '\0';
+				//printf(">%s\n", message);
+				write(pty, message, len);
+			}
+			if(FD_ISSET(pty, &rd)){
+				if((len = read(pty, message, BUFSIZE)) <= 0) return false;
+				//printf("%d\n", len);
+				send_msg(message, len);
+			}
 		}
-		if(FD_ISSET(pty, &rd)){
-			len = read(pty, message, BUFSIZE);
-			send_msg(message, len);
-		}
+	}
+	else{
+		close( client );
+		close( pty );
+		if(setsid() < 0) return false;
+		if( ioctl( tty, TIOCSCTTY, NULL ) < 0) return false;
+		dup2( tty, 0 );
+		dup2( tty, 1 );
+		dup2( tty, 2 );
+		if( tty > 2 ) close( tty );
+		execl("/bin/sh", "sh", "-c", message, (char *)0);
+		exit(0);
 	}
 	return true;
 }
@@ -102,17 +116,20 @@ bool run_shell(){
 void service(){
 	char command_msg;
 	int msg_len, flag;
-	//printf("%d\n", command_msg);
 	while(1){
 		recv_msg(&command_msg, &msg_len);
+		//printf("%d\n", command_msg);
 		switch(command_msg){
 			case GET_FILE:flag = get_file();break;
 			case PUT_FILE:flag = put_file();break;
 			case RUN_SHELL:flag = run_shell();break;
 			default:;
 		}
+		if(flag == false) break;
 		reset_connection();
+		//printf("reset\n");
 	}
+	close_connection();
 }
 
 void usage(){
