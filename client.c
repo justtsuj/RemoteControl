@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include "remote_control.h"
-#include "communication.h"
+#include "connection.h"
 
 char command_line[BUFSIZE + 5];
 char command[BUFSIZE + 5];

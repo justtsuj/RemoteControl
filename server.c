@@ -6,7 +6,7 @@
 #include <arpa/inet.h>
 #include <pty.h>
 #include "remote_control.h"
-#include "communication.h"
+#include "connection.h"
 
 extern int mode_of_sys;
 extern int mode_of_work;
