@@ -1,19 +1,22 @@
-#include <unistd.h>
-#include <stdio.h>
-#include <sys/select.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
 #include <pty.h>
-#include "remote_control.h"
+#include "app.h"
 #include "connection.h"
 
-extern int mode_of_sys;
-extern int mode_of_work;
-extern unsigned int host;
-extern unsigned short port;
-extern int client;
 char message[BUFSIZE + 5];
+int len;
+
+bool init_server(){
+	byte IV[40];
+	byte *IV1 = IV;
+	byte *IV2 = IV + 20;
+	recv_data(IV, 40, 0);
+	setup_context(&send_ctx, key, IV1);
+	setup_context(&recv_ctx, key, IV2);
+	if(recv_msg(message, &len) == FAILURE) return false;
+	if(len != 16 || memcmp(message, challenge, 0x10)) return false;
+	send_msg(challenge, 0x10);
+	return true;
+}
 
 bool get_file(){
 	char file_path[BUFSIZE + 5] = {0};
@@ -168,8 +171,9 @@ int main(int argc, char *argv[]){
 	if(init_connection() == FAILURE){
 		printf("connect failure\n");
 	}
-    else{
-        service();
-    }
+	else{
+        	if(init_server() == FAILURE) return -1;
+		service();
+	}
 	return 0;
 }

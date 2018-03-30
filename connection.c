@@ -1,24 +1,20 @@
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <errno.h>
-#include <unistd.h>
-#include "remote_control.h"
-#include "communication.h"
+#include "basic.h"
+#include "connection.h"
 #include "crypt.h"
+#include "sha1.h"
 
 byte buffer[BUFSIZE + 20] = {0};    //send_data,recv_data buffer
-byte tmp[BUFSIZE + 20] = {0};
 int mode_of_sys;
 int mode_of_work = FORWARDCON;
 unsigned int host;
 unsigned short port = 7586;
 int client, server;
-struct context send_ctx;
+
+extern struct context recv_ctx;
 
 void setup_context(struct context *ctx, char *key, unsigned char IV[20]);
+void encrypt(byte *data, int len);
+bool decrypt(byte *data, int len);
 
 //whether to close the socket when a connection fails
 bool create_client_socket(){
@@ -105,7 +101,6 @@ bool reset_connection(){
 }
 
 bool init_connection(){
-	setup_context(&send_ctx, key, IV1);
 	if(mode_of_sys ^ mode_of_work)
 		return create_server_socket();
 	else
@@ -153,17 +148,22 @@ bool recv_data(byte *loc, int len, int flags){
 
 //set max message length
 bool recv_msg(char *msg, int *plen){
+	int blk_len;
 	int j;
+	byte temp[0x10];
 	if(recv_data(buffer, 0x10, 0) == FAILURE) return false;
-	memcpy(tmp, buffer, 0x10);
-	aes_decrypt(&recv_cts.SK, tmp);
+	memcpy(temp, buffer, 0x10);
+	aes_decrypt(&recv_ctx.SK, temp);
 	for(j = 0; j < 0x10; ++j)
-		tmp[j] ^= recv_ctx.LCT[j];
-	*plen = ((int)tmp[0] << 8) + (int)tmp[1];
+		temp[j] ^= recv_ctx.LCT[j];
+	*plen = ((int)temp[0] << 8) + (int)temp[1];
 	//printf(">%d\n", *plen);
 	if(*plen <= 0 || *plen > BUFSIZE) return false;
-	if(recv_data(buffer + 0x10, *plen + 2 - 0x10 + 20, 0) == FAILURE) return false;
-	if(decrypt(&recv_cts.SK, buffer, *plen + 2 + 20) == FAILURE) return false;
+	blk_len = *plen + 2;
+	if(blk_len & 0x10)
+		blk_len = (blk_len & 0xfffffff0) + 0x10;
+	if(recv_data(buffer + 0x10, blk_len - 0x10 + 20, 0) == FAILURE) return false;
+	if(decrypt(buffer, blk_len + 20) == FAILURE) return false;
 	memcpy(msg, buffer + 2, *plen);
 	return true;
 }

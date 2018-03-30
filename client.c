@@ -1,11 +1,7 @@
-#include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/select.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
-#include "remote_control.h"
+#include <sys/time.h>
+#include "basic.h"
+#include "app.h"
+#include "sha1.h"
 #include "connection.h"
 
 char command_line[BUFSIZE + 5];
@@ -13,13 +9,35 @@ char command[BUFSIZE + 5];
 char opt_first[BUFSIZE + 5];
 char opt_second[BUFSIZE + 5];
 char message[BUFSIZE + 5];
-extern int mode_of_sys;
-extern int mode_of_work;
-extern unsigned int host;
-extern unsigned short port;
-extern int client;
+int msg_len;	//qing chu
 
-
+bool init_client(){
+	struct sha1_context sha1_ctx;
+	struct timeval tv;
+	byte digest[20], IV[40];
+	byte *IV1 = IV;
+	byte *IV2 = IV + 20;
+	int pid = getpid();
+	if(gettimeofday(&tv, NULL) < 0) return false;
+	sha1_starts(&sha1_ctx);
+	sha1_update(&sha1_ctx, (byte*)&tv, sizeof(tv));
+	sha1_update(&sha1_ctx, (byte*)&pid, sizeof(pid));
+	sha1_finish(&sha1_ctx, digest);
+	memcpy(IV1, digest, 20);
+	++pid;
+	if(gettimeofday(&tv, NULL) < 0) return false;
+	sha1_starts(&sha1_ctx);
+	sha1_update(&sha1_ctx, (byte*)&tv, sizeof(tv));
+	sha1_update(&sha1_ctx, (byte*)&pid, sizeof(pid));
+	sha1_finish(&sha1_ctx, digest);
+	memcpy(IV2, digest, 20);
+	send_data(IV, 40, 0);
+	setup_context(&send_ctx, key, IV1);
+	setup_context(&recv_ctx, key, IV2);
+	send_msg(challenge, 16);
+	if(recv_msg(message, &msg_len) == FAILURE) return false;
+	if(msg_len != 16 || memcmp(message, challenge, 16)) return false;
+}
 
 bool parse_command(){
 	int len = strlen(command_line);
@@ -192,9 +210,11 @@ int main(int argc, char *argv[]){
 
 	if(init_connection() == FAILURE){
 		printf("connect failure\n");
-	}else{
+	}
+	else{
+		if(init_client() == FAILURE) return -1;
 		fgets(command_line, BUFSIZE, stdin);
-		exec_command();
+		if(exec_command() == FAILURE) return -1;
 	}
 	return 0;
 }

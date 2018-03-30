@@ -1,6 +1,8 @@
+#ifndef CRYPT
+#define CRYPT
+
+#include "basic.h"
 #include "aes.h"
-#typedef unsigned char byte
-#typedef unsigned long int word
 
 struct context{
 	struct aes_context SK;
@@ -9,3 +11,5 @@ struct context{
 	byte k_opad[64];
 	word p_cntr;
 };
+
+#endif /* crypt.h */

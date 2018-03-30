@@ -1,8 +1,7 @@
 #ifndef AES
 #define AES
 
-#typedef unsigned char byte
-#typedef unsigned long int word
+#include "basic.h"
 
 struct aes_context
 {
@@ -11,8 +10,8 @@ struct aes_context
     word drk[64];     /* decryption round keys */
 };
 
-int  aes_set_key( struct aes_context *ctx, word *key, int nbits );
-void aes_encrypt( struct aes_context *ctx, word data[16] );
-void aes_decrypt( struct aes_context *ctx, word data[16] );
+int  aes_set_key( struct aes_context *ctx, byte *key, int nbits );
+void aes_encrypt( struct aes_context *ctx, byte data[16] );
+void aes_decrypt( struct aes_context *ctx, byte data[16] );
 
 #endif /* aes.h */
