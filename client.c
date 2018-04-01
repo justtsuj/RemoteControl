@@ -31,12 +31,19 @@ bool init_client(){
 	sha1_update(&sha1_ctx, (byte*)&pid, sizeof(pid));
 	sha1_finish(&sha1_ctx, digest);
 	memcpy(IV2, digest, 20);
+	
 	send_data(IV, 40, 0);
+	//for(int i = 0; i < 40; ++i)
+		//printf("%02x ", IV[i]);
+	//printf("\n");
 	setup_context(&send_ctx, key, IV1);
 	setup_context(&recv_ctx, key, IV2);
 	send_msg(challenge, 16);
 	if(recv_msg(message, &msg_len) == FAILURE) return false;
+	printf("here\n");
 	if(msg_len != 16 || memcmp(message, challenge, 16)) return false;
+	printf("here\n");
+	return true;
 }
 
 bool parse_command(){
@@ -158,6 +165,7 @@ bool exec_command(){
 		run_shell(opt_first);	//exception handling
 	}
 	else if(strcmp(command, "get") == 0){
+		printf("here\n");
         	if(strlen(opt_first) == 0) return false;
 		command_msg = GET_FILE;
 		send_msg(&command_msg, 1);
@@ -207,12 +215,13 @@ int main(int argc, char *argv[]){
 				printf("usage\n");
 		}
 	}
-
+	printf("%u\n", host);
 	if(init_connection() == FAILURE){
 		printf("connect failure\n");
 	}
 	else{
 		if(init_client() == FAILURE) return -1;
+		printf("Init success\n");
 		fgets(command_line, BUFSIZE, stdin);
 		if(exec_command() == FAILURE) return -1;
 	}

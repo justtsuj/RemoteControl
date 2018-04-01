@@ -6,7 +6,7 @@
 byte buffer[BUFSIZE + 20] = {0};    //send_data,recv_data buffer
 int mode_of_sys;
 int mode_of_work = FORWARDCON;
-unsigned int host;
+unsigned int host = 0;
 unsigned short port = 7586;
 int client, server;
 
@@ -125,12 +125,15 @@ bool send_msg(char *msg, int len){
 	int blk_len;
 	int i, j;
 	struct sha1_context sha1_ctx;
-	if(len <= 0 || len > BUFSIZE)	//redefine length
+	if(len <= 0 || len > MSGSIZE)	//redefine length
 		return false;
 	buffer[0] = (len >> 8) & 0xff;
 	buffer[1] = len & 0xff;
 	memcpy(buffer + 2, msg, len);	//header file string.h
 	encrypt(buffer, len + 2);
+	for(int i = 0; i < len+2; ++i)
+		printf("%02x ", buffer[i]);
+	printf(" %d\n", len + 2);
 	return send_data(buffer, len + 2 + 20, 0);
 }
 
@@ -151,11 +154,18 @@ bool recv_msg(char *msg, int *plen){
 	int blk_len;
 	int j;
 	byte temp[0x10];
+	printf("here\n");
 	if(recv_data(buffer, 0x10, 0) == FAILURE) return false;
+	for(int i = 0; i < 0x10; ++i)
+		printf("%02x ", buffer[i]);
+	printf("\n");
 	memcpy(temp, buffer, 0x10);
 	aes_decrypt(&recv_ctx.SK, temp);
 	for(j = 0; j < 0x10; ++j)
-		temp[j] ^= recv_ctx.LCT[j];
+		temp[j] ^= recv_ctx.LCT[j];	
+	for(int i = 0; i < 0x10; ++i)
+		printf("%02x ", temp[i]);
+	printf("\n");
 	*plen = ((int)temp[0] << 8) + (int)temp[1];
 	//printf(">%d\n", *plen);
 	if(*plen <= 0 || *plen > BUFSIZE) return false;

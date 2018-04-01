@@ -3,17 +3,22 @@
 #include "connection.h"
 
 char message[BUFSIZE + 5];
-int len;
+int msg_len;
 
 bool init_server(){
 	byte IV[40];
 	byte *IV1 = IV;
 	byte *IV2 = IV + 20;
 	recv_data(IV, 40, 0);
-	setup_context(&send_ctx, key, IV1);
-	setup_context(&recv_ctx, key, IV2);
-	if(recv_msg(message, &len) == FAILURE) return false;
-	if(len != 16 || memcmp(message, challenge, 0x10)) return false;
+	//for(int i = 0; i < 40; ++i)
+		//printf("%02x ", IV[i]);
+	//printf("\n");
+	setup_context(&send_ctx, key, IV2);
+	setup_context(&recv_ctx, key, IV1);
+	//printf("here\n");
+	if(recv_msg(message, &msg_len) == FAILURE) return false;
+	//printf("here\n");
+	if(msg_len != 16 || memcmp(message, challenge, 0x10)) return false;
 	send_msg(challenge, 0x10);
 	return true;
 }
@@ -121,7 +126,7 @@ void service(){
 	int msg_len, flag;
 	while(1){
 		recv_msg(&command_msg, &msg_len);
-		//printf("%d\n", command_msg);
+		printf("%d\n", command_msg);
 		switch(command_msg){
 			case GET_FILE:flag = get_file();break;
 			case PUT_FILE:flag = put_file();break;
