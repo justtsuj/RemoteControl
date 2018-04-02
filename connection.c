@@ -126,6 +126,15 @@ bool send_msg(char *msg, int len){
 	int blk_len;
 #ifdef DEBUG
 	printf("send %d\n", len);
+	for(int i = 0; i < len; ++i)
+		if(msg[i] > 32 && msg[i] < 127)
+			printf("%5c", msg[i]);
+		else
+			printf("%#5x", (byte)msg[i]);
+	printf("\n");
+#endif
+#ifdef DEBUGCRYPT
+	printf("send %d\n", len);
 	printf("plaintext: \t");
 	for(int i = 0; i < len; ++i)
 		printf("%02x ", (byte)msg[i]);
@@ -141,7 +150,7 @@ bool send_msg(char *msg, int len){
 	if(blk_len & 0x0f)
 		blk_len = (blk_len & 0xfffffff0) + 0x10;
 	encrypt(buffer, blk_len);
-#ifdef DEBUG
+#ifdef DEBUGCRYPT
 	printf("ciphertext: \t");
 	for(int i = 0; i < blk_len; ++i)
 		printf("%02x ", buffer[i]);
@@ -187,7 +196,7 @@ bool recv_msg(char *msg, int *plen){
 		blk_len = (blk_len & 0xfffffff0) + 0x10;
 	//printf("connection.c:176 blk_len = %d\n", blk_len);
 	if(recv_data(buffer + 0x10, blk_len - 0x10 + 20, 0) == FAILURE) return false;
-#ifdef DEBUG
+#ifdef DEBUGCRYPT
 	printf("recv %d\n", *plen);
 	printf("ciphertext: \t");
 	for(int i = 0; i < blk_len; ++i)
@@ -196,10 +205,19 @@ bool recv_msg(char *msg, int *plen){
 #endif
 	if(decrypt(buffer, blk_len + 20) == FAILURE) return false;
 	memcpy(msg, buffer + 2, *plen);
-#ifdef DEBUG
+#ifdef DEBUGCRYPT
 	printf("plaintext: \t");
 	for(int i = 0; i < *plen; ++i)
 		printf("%02x ", (byte)msg[i]);
+	printf("\n");
+#endif
+#ifdef DEBUG
+	printf("recv %d\n", *plen);
+	for(int i = 0; i < *plen; ++i)
+		if(msg[i] > 32 && msg[i] < 127)
+			printf("%5c", msg[i]);
+		else
+			printf("%#5x", (byte)msg[i]);
 	printf("\n");
 #endif
 	return true;

@@ -142,10 +142,12 @@ bool run_shell(char *shell_command){
 		FD_SET(client, &rd);
 		select(client + 1, &rd, NULL, NULL, NULL);
 		if(FD_ISSET(client, &rd)){
+			//printf("client\n");
 			if(recv_msg(message, &len) == false) return false;
 			write(1, message, len);
 		}
 		if(FD_ISSET(0, &rd)){
+			//printf("stdin\n");
 			if((len = read(0, message, BUFSIZE)) <= 0) return false;
 			send_msg(message, len);
 		}

@@ -76,15 +76,13 @@ bool put_file(){
 
 bool run_shell(){
 	fd_set rd;
-	int len;
 	int pty, tty, pid;
 	int tmp;
-	char message[BUFSIZE + 5] = {0};
 	if(openpty(&pty, &tty, NULL, NULL, NULL ) < 0)
 		return false;
-	if(recv_msg(message, &len) == false) return false;
-	message[len] = '\0';
-	printf("%s\n", message);
+	if(recv_msg(message, &msg_len) == false) return false;
+	message[msg_len] = '\0';
+	//printf("%s\n", message);
 	if((pid = fork()) < 0) return false;
 	if(pid){
 		close(tty);
@@ -96,15 +94,15 @@ bool run_shell(){
 			if(select(tmp + 1, &rd, NULL, NULL, NULL) < 0)
 				return false;
 			if(FD_ISSET(client, &rd)){
-				if(recv_msg(message, &len) == false) return false;
+				if(recv_msg(message, &msg_len) == false) return false;
 				//message[len] = '\0';
 				//printf(">%s\n", message);
-				write(pty, message, len);
+				write(pty, message, msg_len);
 			}
 			if(FD_ISSET(pty, &rd)){
-				if((len = read(pty, message, BUFSIZE)) <= 0) return false;
+				if((msg_len = read(pty, message, BUFSIZE)) <= 0) return false;
 				//printf("%d\n", len);
-				send_msg(message, len);
+				send_msg(message, msg_len);
 			}
 		}
 	}
@@ -125,12 +123,12 @@ bool run_shell(){
 
 void service(){
 	char command_msg;
-	int msg_len, flag;
+	int cmd_msg_len, flag;
 	while(1){
 		//printf("here\n");
-		if(recv_msg(&command_msg, &msg_len) == FAILURE) return;
-		printf("msg_len %d\n", msg_len);
-		printf("%02x\n", command_msg);
+		if(recv_msg(&command_msg, &cmd_msg_len) == FAILURE) return;
+		//printf("msg_len %d\n", msg_len);
+		//printf("%02x\n", command_msg);
 		switch(command_msg){
 			case GET_FILE:flag = get_file();break;
 			case PUT_FILE:flag = put_file();break;
