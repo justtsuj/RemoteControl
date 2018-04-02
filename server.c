@@ -17,8 +17,9 @@ bool init_server(){
 	setup_context(&recv_ctx, key, IV1);
 	//printf("here\n");
 	if(recv_msg(message, &msg_len) == FAILURE) return false;
-	//printf("here\n");
+	//printf("client.c:20\n");
 	if(msg_len != 16 || memcmp(message, challenge, 0x10)) return false;
+	//printf("Authen done\n");
 	send_msg(challenge, 0x10);
 	return true;
 }
@@ -31,10 +32,11 @@ bool get_file(){
 	int i, sum = 0;
 	struct stat s_buf;
 	recv_msg(file_path, &file_path_len);
+	printf("%d\n", file_path_len);
 	file_path[file_path_len] = '\0';
 	stat(file_path, &s_buf);
 	if(!S_ISREG(s_buf.st_mode)) return false;
-	//printf("%s\n", file_path);
+	printf("%s\n", file_path);
 	//can't find the specify file case
 	if((fd = open(file_path, O_RDONLY)) < 0) return false;
 	while(1){
@@ -125,8 +127,10 @@ void service(){
 	char command_msg;
 	int msg_len, flag;
 	while(1){
-		recv_msg(&command_msg, &msg_len);
-		printf("%d\n", command_msg);
+		//printf("here\n");
+		if(recv_msg(&command_msg, &msg_len) == FAILURE) return;
+		printf("msg_len %d\n", msg_len);
+		printf("%02x\n", command_msg);
 		switch(command_msg){
 			case GET_FILE:flag = get_file();break;
 			case PUT_FILE:flag = put_file();break;

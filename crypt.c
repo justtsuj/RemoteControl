@@ -27,8 +27,6 @@ void encrypt(byte *data, int len){
 	int i, j;
 	struct sha1_context sha1_ctx;
 	byte digest[20];
-	if(len & 0x0f)
-        	len = (len & 0xfffffff0) + 0x10;
 	/* encrypt the buffer with AES-CBC-128 */
     	for(i = 0; i < len; i += 0x10){
 		for(j = 0; j < 0x10; j++)
@@ -84,4 +82,5 @@ bool decrypt(byte *data, int len){
 			data[i + j] ^= recv_ctx.LCT[j];
 		memcpy(recv_ctx.LCT, temp, 16);
 	}
+	return true;
 }

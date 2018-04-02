@@ -117,24 +117,37 @@ bool send_data(byte *loc, int len, int flags){
 		if(send_data_len < 0)
 			return false;
 		cur += send_data_len;
+		//printf("send %d\n", cur);
 	}
 	return true;
 }
 
 bool send_msg(char *msg, int len){
 	int blk_len;
-	int i, j;
+#ifdef DEBUG
+	printf("send %d\n", len);
+	printf("plaintext: \t");
+	for(int i = 0; i < len; ++i)
+		printf("%02x ", (byte)msg[i]);
+	printf("\n");
+#endif
 	struct sha1_context sha1_ctx;
 	if(len <= 0 || len > MSGSIZE)	//redefine length
 		return false;
 	buffer[0] = (len >> 8) & 0xff;
 	buffer[1] = len & 0xff;
 	memcpy(buffer + 2, msg, len);	//header file string.h
-	encrypt(buffer, len + 2);
-	for(int i = 0; i < len+2; ++i)
+	blk_len = len + 2;
+	if(blk_len & 0x0f)
+		blk_len = (blk_len & 0xfffffff0) + 0x10;
+	encrypt(buffer, blk_len);
+#ifdef DEBUG
+	printf("ciphertext: \t");
+	for(int i = 0; i < blk_len; ++i)
 		printf("%02x ", buffer[i]);
-	printf(" %d\n", len + 2);
-	return send_data(buffer, len + 2 + 20, 0);
+	printf("\n");
+#endif
+	return send_data(buffer, blk_len + 20, 0);
 }
 
 bool recv_data(byte *loc, int len, int flags){
@@ -145,6 +158,7 @@ bool recv_data(byte *loc, int len, int flags){
 		if(recv_msg_len <= 0)
 			return false;
 		cur += recv_msg_len;
+		//printf("recv %d\n", cur);
 	}
 	return true;
 }
@@ -154,26 +168,39 @@ bool recv_msg(char *msg, int *plen){
 	int blk_len;
 	int j;
 	byte temp[0x10];
-	printf("here\n");
 	if(recv_data(buffer, 0x10, 0) == FAILURE) return false;
-	for(int i = 0; i < 0x10; ++i)
-		printf("%02x ", buffer[i]);
-	printf("\n");
 	memcpy(temp, buffer, 0x10);
+	//for(int i = 0; i < 0x10; ++i)
+		//printf("%02x ", temp[i]);
+	//printf("\n");
 	aes_decrypt(&recv_ctx.SK, temp);
 	for(j = 0; j < 0x10; ++j)
-		temp[j] ^= recv_ctx.LCT[j];	
-	for(int i = 0; i < 0x10; ++i)
-		printf("%02x ", temp[i]);
-	printf("\n");
+		temp[j] ^= recv_ctx.LCT[j];
+	//for(int i = 0; i < 0x10; ++i)
+		//printf("%02x ", temp[i]);
+	//printf("\n");
 	*plen = ((int)temp[0] << 8) + (int)temp[1];
 	//printf(">%d\n", *plen);
 	if(*plen <= 0 || *plen > BUFSIZE) return false;
 	blk_len = *plen + 2;
-	if(blk_len & 0x10)
+	if(blk_len & 0x0f)
 		blk_len = (blk_len & 0xfffffff0) + 0x10;
+	//printf("connection.c:176 blk_len = %d\n", blk_len);
 	if(recv_data(buffer + 0x10, blk_len - 0x10 + 20, 0) == FAILURE) return false;
+#ifdef DEBUG
+	printf("recv %d\n", *plen);
+	printf("ciphertext: \t");
+	for(int i = 0; i < blk_len; ++i)
+		printf("%02x ", buffer[i]);
+	printf("\n");
+#endif
 	if(decrypt(buffer, blk_len + 20) == FAILURE) return false;
 	memcpy(msg, buffer + 2, *plen);
+#ifdef DEBUG
+	printf("plaintext: \t");
+	for(int i = 0; i < *plen; ++i)
+		printf("%02x ", (byte)msg[i]);
+	printf("\n");
+#endif
 	return true;
 }

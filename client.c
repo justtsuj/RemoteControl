@@ -40,9 +40,9 @@ bool init_client(){
 	setup_context(&recv_ctx, key, IV2);
 	send_msg(challenge, 16);
 	if(recv_msg(message, &msg_len) == FAILURE) return false;
-	printf("here\n");
+	//printf("Receive success %d\n", msg_len);
 	if(msg_len != 16 || memcmp(message, challenge, 16)) return false;
-	printf("here\n");
+	//printf("here\n");
 	return true;
 }
 
@@ -215,9 +215,9 @@ int main(int argc, char *argv[]){
 				printf("usage\n");
 		}
 	}
-	printf("%u\n", host);
+	//printf("%u\n", host);
 	if(init_connection() == FAILURE){
-		printf("connect failure\n");
+		printf("Connect failure\n");
 	}
 	else{
 		if(init_client() == FAILURE) return -1;
