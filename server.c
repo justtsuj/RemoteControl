@@ -32,7 +32,7 @@ bool get_file(){
 	int i, sum = 0;
 	struct stat s_buf;
 	recv_msg(file_path, &file_path_len);
-	printf("%d\n", file_path_len);
+	//printf("%d\n", file_path_len);
 	file_path[file_path_len] = '\0';
 	stat(file_path, &s_buf);
 	if(!S_ISREG(s_buf.st_mode)) return false;
@@ -42,7 +42,7 @@ bool get_file(){
 	while(1){
 		i = read(fd, message, BUFSIZE);
 		//printf("%d\n", i);
-		if(i <= 0) return false;
+		if(i <= 0) break;
 		send_msg(message, i);
 		sum += i;
 	}
@@ -66,7 +66,7 @@ bool put_file(){
 	while(1){	//to be perfected
 		flag = recv_msg(message, &i);	//to be perfected
 		//printf("%d\n", i);
-		if(flag == false || i <= 0) return false;
+		if(flag == false || i <= 0) break;
 		if(write(fd, message, i) != i) return false; //exception handling;
 		sum += i;
 	}
@@ -78,6 +78,7 @@ bool run_shell(){
 	fd_set rd;
 	int pty, tty, pid;
 	int tmp;
+	int ret;
 	if(openpty(&pty, &tty, NULL, NULL, NULL ) < 0)
 		return false;
 	if(recv_msg(message, &msg_len) == false) return false;
@@ -94,17 +95,24 @@ bool run_shell(){
 			if(select(tmp + 1, &rd, NULL, NULL, NULL) < 0)
 				return false;
 			if(FD_ISSET(client, &rd)){
-				if(recv_msg(message, &msg_len) == false) return false;
+				ret = recv_msg(message, &msg_len);
+				//printf("%d\n", ret);
+				if(ret == 0) break;
+				if(ret < 0) return false;
 				//message[len] = '\0';
 				//printf(">%s\n", message);
 				write(pty, message, msg_len);
 			}
 			if(FD_ISSET(pty, &rd)){
-				if((msg_len = read(pty, message, BUFSIZE)) <= 0) return false;
+				ret = read(pty, message, BUFSIZE);
+				printf("%d\n", ret);
+				if(ret <= 0) break;
+				//if(ret < 0) return false;
 				//printf("%d\n", len);
-				send_msg(message, msg_len);
+				send_msg(message, ret);
 			}
 		}
+		//printf("here\n");
 	}
 	else{
 		close( client );
@@ -126,7 +134,9 @@ void service(){
 	int cmd_msg_len, flag;
 	while(1){
 		//printf("here\n");
+		if(init_server() == FAILURE) return;
 		if(recv_msg(&command_msg, &cmd_msg_len) == FAILURE) return;
+		//printf("here\n");
 		//printf("msg_len %d\n", msg_len);
 		//printf("%02x\n", command_msg);
 		switch(command_msg){
@@ -139,7 +149,6 @@ void service(){
 		reset_connection();
 		//printf("reset\n");
 	}
-	close_connection();
 }
 
 void usage(){
@@ -179,8 +188,8 @@ int main(int argc, char *argv[]){
 		printf("connect failure\n");
 	}
 	else{
-        	if(init_server() == FAILURE) return -1;
 		service();
+		close_connection();
 	}
 	return 0;
 }

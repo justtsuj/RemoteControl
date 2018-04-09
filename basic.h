@@ -14,7 +14,7 @@ typedef unsigned long int word;
 #define SERVER 1
 #define FORWARDCON 0
 #define REVERSECON 1
-#define MSGSIZE 600	//to be perfected
+#define MSGSIZE 1000	//to be perfected
 #define GET_FILE 0
 #define PUT_FILE 1
 #define RUN_SHELL 2
