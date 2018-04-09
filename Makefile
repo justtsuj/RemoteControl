@@ -7,4 +7,4 @@ client: client.c connection.c crypt.c sha1.c aes.c
 proxy: proxy.c
 	gcc -g -o proxy proxy.c
 clean:
-	rm server client
+	rm server client proxy

@@ -36,7 +36,10 @@ bool create_client_socket(){
 bool create_server_socket(){
 	struct sockaddr_in serv_addr, clie_addr;
 	int clie_addr_len;
+	int opt=1;
 	if((server = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+		return false;
+	if(setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
 		return false;
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_port = htons(port);
@@ -63,10 +66,12 @@ bool reset_server_socket(){
 	struct sockaddr_in clie_addr;
 	int clie_addr_len;
 	close(client);
+	//printf("here\n");
 	if((client = accept(server, (struct sockaddr *)&clie_addr, &clie_addr_len)) < 0){
 		close(server);
 		return false;
 	}
+	//printf("here\n");
     	return true;
 }
 
@@ -159,25 +164,29 @@ bool send_msg(char *msg, int len){
 	return send_data(buffer, blk_len + 20, 0);
 }
 
-bool recv_data(byte *loc, int len, int flags){
+int recv_data(byte *loc, int len, int flags){
 	int recv_msg_len;
 	int cur = 0;
 	while(cur < len){
 		recv_msg_len = recv(client, loc + cur, len - cur, flags);
 		if(recv_msg_len <= 0)
-			return false;
+			return recv_msg_len;
 		cur += recv_msg_len;
 		//printf("recv %d\n", cur);
 	}
-	return true;
+	return cur;
 }
 
 //set max message length
-bool recv_msg(char *msg, int *plen){
+int recv_msg(char *msg, int *plen){
 	int blk_len;
 	int j;
+	int ret;
 	byte temp[0x10];
-	if(recv_data(buffer, 0x10, 0) == FAILURE) return false;
+	if((ret = recv_data(buffer, 0x10, 0)) <= 0){
+		//printf("%d\n", ret);	
+		return ret;
+	}
 	memcpy(temp, buffer, 0x10);
 	//for(int i = 0; i < 0x10; ++i)
 		//printf("%02x ", temp[i]);
@@ -195,7 +204,10 @@ bool recv_msg(char *msg, int *plen){
 	if(blk_len & 0x0f)
 		blk_len = (blk_len & 0xfffffff0) + 0x10;
 	//printf("connection.c:176 blk_len = %d\n", blk_len);
-	if(recv_data(buffer + 0x10, blk_len - 0x10 + 20, 0) == FAILURE) return false;
+	if((ret = recv_data(buffer + 0x10, blk_len - 0x10 + 20, 0)) <= 0){
+		//printf("%d\n", ret);	
+		return ret;
+	}
 #ifdef DEBUGCRYPT
 	printf("recv %d\n", *plen);
 	printf("ciphertext: \t");

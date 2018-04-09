@@ -1,4 +1,5 @@
 #include <sys/time.h>
+#include <termios.h>
 #include "basic.h"
 #include "app.h"
 #include "sha1.h"
@@ -135,7 +136,16 @@ bool put_file(char *dest_path, char *sour_path){
 bool run_shell(char *shell_command){
 	fd_set rd;
 	int len;
+	struct termios tp, tr;
 	send_msg(shell_command, strlen(shell_command));
+	if(tcgetattr(0, &tp) < 0 ) return false;
+        memcpy((void*)&tr, (void*)&tp, sizeof(tr));
+	tr.c_iflag &= ~(ISTRIP|INLCR|IGNCR|ICRNL|IXON|IXANY|IXOFF);
+	tr.c_lflag &= ~(ISIG|ICANON|ECHO|ECHOE|ECHOK|ECHONL|IEXTEN);
+	tr.c_oflag &= ~OPOST;
+	tr.c_cc[VMIN] = 1;
+	tr.c_cc[VTIME] = 0;
+        if(tcsetattr(0, TCSAFLUSH, &tr) < 0) return false;
 	while(1){
 		FD_ZERO(&rd);
 		FD_SET(0, &rd);
@@ -143,15 +153,16 @@ bool run_shell(char *shell_command){
 		select(client + 1, &rd, NULL, NULL, NULL);
 		if(FD_ISSET(client, &rd)){
 			//printf("client\n");
-			if(recv_msg(message, &len) == false) return false;
+			if(recv_msg(message, &len) == false) break;
 			write(1, message, len);
 		}
 		if(FD_ISSET(0, &rd)){
 			//printf("stdin\n");
-			if((len = read(0, message, BUFSIZE)) <= 0) return false;
+			if((len = read(0, message, BUFSIZE)) <= 0) break;
 			send_msg(message, len);
 		}
 	}
+	if(tcsetattr(0, TCSAFLUSH, &tp) < 0) return false;
 	//exception handling;
 	return true;
 }
@@ -167,7 +178,7 @@ bool exec_command(){
 		run_shell(opt_first);	//exception handling
 	}
 	else if(strcmp(command, "get") == 0){
-		printf("here\n");
+		//printf("here\n");
         	if(strlen(opt_first) == 0) return false;
 		command_msg = GET_FILE;
 		send_msg(&command_msg, 1);
@@ -201,7 +212,7 @@ int main(int argc, char *argv[]){
 	mode_of_sys = CLIENT;
 	while((ch = getopt(argc, argv, "frh:p:")) != -1){
 		switch(ch){
-		    case 'f':
+			case 'f':
 				mode_of_work = FORWARDCON;
 				break;
 			case 'r':
@@ -223,9 +234,10 @@ int main(int argc, char *argv[]){
 	}
 	else{
 		if(init_client() == FAILURE) return -1;
-		printf("Init success\n");
+		//printf("Init success\n");
 		fgets(command_line, BUFSIZE, stdin);
 		if(exec_command() == FAILURE) return -1;
+		close_connection();
 	}
 	return 0;
 }

@@ -17,9 +17,9 @@ extern struct context recv_ctx;
 
 bool init_connection(void);
 bool send_msg(char *msg, int len);
-bool recv_msg(char *msg, int *plen);
+int recv_msg(char *msg, int *plen);
 bool send_data(byte *loc, int len, int flag);
-bool recv_data(byte *loc, int len, int flag);
+int recv_data(byte *loc, int len, int flag);
 bool reset_connection(void);
 bool close_connection(void);
 
