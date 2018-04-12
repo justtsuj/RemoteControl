@@ -152,16 +152,17 @@ bool run_shell(char *shell_command){
 		FD_SET(client, &rd);
 		select(client + 1, &rd, NULL, NULL, NULL);
 		if(FD_ISSET(client, &rd)){
-			//printf("client\n");
 			if(recv_msg(message, &len) == false) break;
+			//printf("client %d\n", len);
 			write(1, message, len);
 		}
 		if(FD_ISSET(0, &rd)){
-			//printf("stdin\n");
 			if((len = read(0, message, BUFSIZE)) <= 0) break;
+			//printf("stdin\n");
 			send_msg(message, len);
 		}
 	}
+	//printf("runshelldone\n");
 	if(tcsetattr(0, TCSAFLUSH, &tp) < 0) return false;
 	//exception handling;
 	return true;
@@ -237,6 +238,7 @@ int main(int argc, char *argv[]){
 		//printf("Init success\n");
 		fgets(command_line, BUFSIZE, stdin);
 		if(exec_command() == FAILURE) return -1;
+		//printf("Done\n");
 		close_connection();
 	}
 	return 0;

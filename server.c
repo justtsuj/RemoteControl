@@ -105,7 +105,7 @@ bool run_shell(){
 			}
 			if(FD_ISSET(pty, &rd)){
 				ret = read(pty, message, BUFSIZE);
-				printf("%d\n", ret);
+				//printf("%d\n", ret);
 				if(ret <= 0) break;
 				//if(ret < 0) return false;
 				//printf("%d\n", len);
@@ -161,9 +161,16 @@ void usage(){
 }
 
 int main(int argc, char *argv[]){
-    int ch;
-    mode_of_sys = SERVER;
-    while((ch = getopt(argc, argv, "frhi:p:")) != -1){
+	int ch, pid, i;
+	mode_of_sys = SERVER;
+#ifdef RELEASE
+	pid = fork();
+	if(pid < 0) return -1;
+	if(pid > 0) return 0;
+	if(setsid() < 0) return -1;
+	for(i = 0; i < 1024; ++i) close(i);
+#endif
+	while((ch = getopt(argc, argv, "frhi:p:")) != -1){
 		switch(ch){
 		    case 'f':
 				mode_of_work = FORWARDCON;

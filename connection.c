@@ -16,6 +16,13 @@ void setup_context(struct context *ctx, char *key, unsigned char IV[20]);
 void encrypt(byte *data, int len);
 bool decrypt(byte *data, int len);
 
+void blocked_connection(int sockfd, struct sockaddr *serv_addr, int addrlen){
+	while(1){
+		if(connect(sockfd, serv_addr, addrlen) == 0)
+			return;
+	}
+}
+
 //whether to close the socket when a connection fails
 bool create_client_socket(){
 	struct sockaddr_in addr;
@@ -25,9 +32,18 @@ bool create_client_socket(){
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = host;
 	addr.sin_port = htons(port);
-	if(connect(client, (struct sockaddr*)&addr, sizeof(addr)) < 0){
-		close(client);
-		return false;
+	if(mode_of_work){
+		while(1){
+			sleep(10);
+			if(connect(client, (struct sockaddr*)&addr, sizeof(addr)) == 0)
+				return true;
+		}
+	}
+	else{
+		if(connect(client, (struct sockaddr*)&addr, sizeof(addr)) < 0){
+			close(client);
+			return false;
+		}
 	}
 	return true;
 }
@@ -48,7 +64,7 @@ bool create_server_socket(){
 		close(server);	//you ya
 		return false;
 	}
-	if(listen(server, 5 ) < 0){
+	if(listen(server, 1) < 0){
 		close(server);
 		return false;
 	}
@@ -65,6 +81,7 @@ bool create_server_socket(){
 bool reset_server_socket(){
 	struct sockaddr_in clie_addr;
 	int clie_addr_len;
+	//printf("here\n");
 	close(client);
 	//printf("here\n");
 	if((client = accept(server, (struct sockaddr *)&clie_addr, &clie_addr_len)) < 0){
@@ -76,7 +93,10 @@ bool reset_server_socket(){
 }
 
 bool reset_client_socket(){
+	//printf("reset_client_socket\n");
 	close(client);
+	create_client_socket();
+	//printf("reset__\n");
 	return true;
 }
 
