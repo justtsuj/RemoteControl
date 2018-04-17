@@ -210,15 +210,8 @@ bool exec_command(){
 
 int main(int argc, char *argv[]){
 	int ch;
-	mode_of_sys = CLIENT;
-	while((ch = getopt(argc, argv, "frh:p:")) != -1){
+	while((ch = getopt(argc, argv, "h:p:")) != -1){
 		switch(ch){
-			case 'f':
-				mode_of_work = FORWARDCON;
-				break;
-			case 'r':
-				mode_of_work = REVERSECON;
-				break;
 			case 'h':
 				host = inet_addr(optarg);
 				break;
@@ -230,16 +223,35 @@ int main(int argc, char *argv[]){
 		}
 	}
 	//printf("%u\n", host);
-	if(init_connection() == FAILURE){
-		printf("Connect failure\n");
+
+	struct sockaddr_in addr;
+	int addr_len;
+#ifdef REVERSE
+	create_server_socket();
+	//whether the output shoule be added
+	if((client = accept(server, (struct sockaddr *)&addr, &addr_len)) < 0){
+		close(server);
+		return -1;
 	}
-	else{
-		if(init_client() == FAILURE) return -1;
-		//printf("Init success\n");
-		fgets(command_line, BUFSIZE, stdin);
-		if(exec_command() == FAILURE) return -1;
-		//printf("Done\n");
-		close_connection();
+#else	
+	if((client = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+		return -1;
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = host;
+	addr.sin_port = htons(port);
+	if(connect(client, (struct sockaddr *)&addr, sizeof(addr)) < 0){
+		close( client );
+		return -1;
 	}
+#endif
+	if(init_client() == FAILURE) return -1;
+	//printf("Init success\n");
+	fgets(command_line, BUFSIZE, stdin);
+	if(exec_command() == FAILURE) return -1;
+	//printf("Done\n");
+#ifdef REVERSE
+	close(server);
+#endif
 	return 0;
 }

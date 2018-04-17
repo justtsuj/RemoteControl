@@ -4,10 +4,6 @@
 #include "sha1.h"
 
 byte buffer[BUFSIZE + 20] = {0};    //send_data,recv_data buffer
-int mode_of_sys;
-int mode_of_work = FORWARDCON;
-unsigned int host = 0;
-unsigned short port = 7586;
 int client, server;
 
 extern struct context recv_ctx;
@@ -15,38 +11,6 @@ extern struct context recv_ctx;
 void setup_context(struct context *ctx, char *key, unsigned char IV[20]);
 void encrypt(byte *data, int len);
 bool decrypt(byte *data, int len);
-
-void blocked_connection(int sockfd, struct sockaddr *serv_addr, int addrlen){
-	while(1){
-		if(connect(sockfd, serv_addr, addrlen) == 0)
-			return;
-	}
-}
-
-//whether to close the socket when a connection fails
-bool create_client_socket(){
-	struct sockaddr_in addr;
-	if((client = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-		return false;
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = host;
-	addr.sin_port = htons(port);
-	if(mode_of_work){
-		while(1){
-			sleep(10);
-			if(connect(client, (struct sockaddr*)&addr, sizeof(addr)) == 0)
-				return true;
-		}
-	}
-	else{
-		if(connect(client, (struct sockaddr*)&addr, sizeof(addr)) < 0){
-			close(client);
-			return false;
-		}
-	}
-	return true;
-}
 
 //socket setting
 bool create_server_socket(){
@@ -58,7 +22,7 @@ bool create_server_socket(){
 	if(setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
 		return false;
 	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(port);
+	serv_addr.sin_port = htons(SERVERPORT);
 	serv_addr.sin_addr.s_addr = INADDR_ANY;
 	if(bind(server, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0){
 		close(server);	//you ya
@@ -68,68 +32,7 @@ bool create_server_socket(){
 		close(server);
 		return false;
 	}
-	//whether the output shoule be added
-	if((client = accept(server, (struct sockaddr *)&clie_addr, &clie_addr_len)) < 0){
-		close(server);
-		return false;
-	}
     	return true;
-}
-
-
-
-bool reset_server_socket(){
-	struct sockaddr_in clie_addr;
-	int clie_addr_len;
-	//printf("here\n");
-	close(client);
-	//printf("here\n");
-	if((client = accept(server, (struct sockaddr *)&clie_addr, &clie_addr_len)) < 0){
-		close(server);
-		return false;
-	}
-	//printf("here\n");
-    	return true;
-}
-
-bool reset_client_socket(){
-	//printf("reset_client_socket\n");
-	close(client);
-	create_client_socket();
-	//printf("reset__\n");
-	return true;
-}
-
-bool close_server_socket(){
-	close(client);
-	close(server);
-	return true;
-}
-
-bool close_client_socket(){
-	close(client);
-	return true;
-}
-
-bool close_connection(){
-	if(mode_of_sys ^ mode_of_work)
-		return close_server_socket();
-	else
-		return close_client_socket();
-}
-
-bool reset_connection(){
-	if(mode_of_sys ^ mode_of_work)
-		return reset_server_socket();
-	else
-		return reset_client_socket();
-}
-
-bool init_connection(){
-	if(mode_of_sys ^ mode_of_work)
-		return create_server_socket();
-	else
-		return create_client_socket();
 }
 
 //send a complete data

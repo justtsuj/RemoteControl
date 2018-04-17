@@ -20,7 +20,10 @@ typedef unsigned long int word;
 #define RUN_SHELL 2
 #define FAILURE false
 #define BUFSIZE (MSGSIZE + 2 + 16 + 20)
+#define SERVERPORT 7586
 
+//#define BACKGROUND
+//#define REVERSE
 //#define DEBUG
 
 #endif /* basic.h */

