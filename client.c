@@ -5,135 +5,154 @@
 #include "sha1.h"
 #include "connection.h"
 
-char command_line[BUFSIZE + 5];
-char command[BUFSIZE + 5];
-char opt_first[BUFSIZE + 5];
-char opt_second[BUFSIZE + 5];
-char message[BUFSIZE + 5];
-int msg_len;	//qing chu
+char command_line[MSGSIZE + 5];
+char command[MSGSIZE + 5];
+char opt_first[MSGSIZE + 5];
+char opt_second[MSGSIZE + 5];
+char send_msg_buf[MSGSIZE + 5], recv_msg_buf[MSGSIZE + 5];
+int send_msg_len, recv_msg_len;
 
-bool init_client(){
+int init_client(){
 	struct sha1_context sha1_ctx;
 	struct timeval tv;
+	int pid;
 	byte digest[20], IV[40];
 	byte *IV1 = IV;
 	byte *IV2 = IV + 20;
-	int pid = getpid();
-	if(gettimeofday(&tv, NULL) < 0) return false;
+	pid = getpid();
+	gettimeofday(&tv, NULL);
 	sha1_starts(&sha1_ctx);
 	sha1_update(&sha1_ctx, (byte*)&tv, sizeof(tv));
 	sha1_update(&sha1_ctx, (byte*)&pid, sizeof(pid));
 	sha1_finish(&sha1_ctx, digest);
 	memcpy(IV1, digest, 20);
 	++pid;
-	if(gettimeofday(&tv, NULL) < 0) return false;
+	gettimeofday(&tv, NULL);
 	sha1_starts(&sha1_ctx);
 	sha1_update(&sha1_ctx, (byte*)&tv, sizeof(tv));
 	sha1_update(&sha1_ctx, (byte*)&pid, sizeof(pid));
 	sha1_finish(&sha1_ctx, digest);
-	memcpy(IV2, digest, 20);
-	
+	memcpy(IV2, digest, 20);	
 	send_data(IV, 40, 0);
-	//for(int i = 0; i < 40; ++i)
-		//printf("%02x ", IV[i]);
-	//printf("\n");
+#ifdef DEBUG
+	printf("[+]: The key: ");
+	for(int i = 0; i < 40; ++i)
+		printf("%02x ", IV[i]);
+	printf("\n");
+#endif
 	setup_context(&send_ctx, key, IV1);
 	setup_context(&recv_ctx, key, IV2);
 	send_msg(challenge, 16);
-	if(recv_msg(message, &msg_len) == FAILURE) return false;
-	//printf("Receive success %d\n", msg_len);
-	if(msg_len != 16 || memcmp(message, challenge, 16)) return false;
-	//printf("here\n");
-	return true;
+	recv_msg(recv_msg_buf, &recv_msg_len);
+	if(recv_msg_len != 16 || memcmp(recv_msg_buf, challenge, 16)) return 8;
+	return 0;
 }
 
-bool parse_command(){
+int parse_command(){
 	int len = strlen(command_line);
 	int i = 0, j;
 	memset(command, 0, sizeof(command));
 	memset(opt_first, 0, sizeof(opt_first));
 	memset(opt_second, 0, sizeof(opt_second));
 	--len;	//filter '\n'
+	while(i < len && command_line[i] == ' ') ++i;	//filter space
 	for(j = 0; j < BUFSIZE && i < len && command_line[i] != ' '; ++i, ++j){
 		command[j] = command_line[i];
 	}
-	if(strlen(command) == 0)
-		return false;
+	command[j] = 0;
+	if(j == 0) return 9;
 	while(i < len && command_line[i] == ' ') ++i;	//filter space
 	for(j = 0; j < BUFSIZE && i < len && command_line[i] != ' '; ++i, ++j){
 		opt_first[j] = command_line[i];
 	}
+	opt_first[j] = 0;
 	while(i < len && command_line[i] == ' ') ++i;
 	for(j = 0; j < BUFSIZE && i < len && command_line[i] != ' '; ++i, ++j){
 		opt_second[j] = command_line[i];
 	}
-    return true;
+	opt_second[j] = 0;
+	return 0;
 	//exception handling;
 }
 
-bool get_file(char *dest_path, char *sour_path){	//point out the meaning of parameter
+int get_file(char *dest_path, char *sour_path){	//point out the meaning of parameter
 	char *tmp;
+	char flag;
 	int fd;
-	int i, j, sum = 0;
+	int len, sum = 0;
 	struct stat s_buf;
-
-	//printf("%s\n", sour_path);
-	send_msg(sour_path, strlen(sour_path));
+#ifdef DEBUG
+	printf("[+]: Source file path: %s\n", sour_path);
+#endif
 	stat(dest_path,&s_buf);
-	if(!S_ISDIR(s_buf.st_mode)) return false;
+	if(!S_ISDIR(s_buf.st_mode)){
+		flag = 0;
+		send_msg(&flag, 1);
+		return 12;
+	}
+	send_msg(sour_path, strlen(sour_path));
+	recv_msg(recv_msg_buf, &recv_msg_len);
+	if(recv_msg_len == 1 && recv_msg_buf[0] == 0) return 11;
 	if(dest_path[strlen(dest_path) - 1] != '/')
 		strcat(dest_path, "/");
-	//printf("%s\n", dest_path);
 	tmp = strrchr(sour_path, '/');
 	if(tmp) ++tmp;
 	else tmp = sour_path;
-	/*len = strlen(dest_path);
-	if(dest_path[len - 1] != '/')
-		dest_path[len] = '/';*/
+	if(strlen(tmp) + strlen(dest_path) >= BUFSIZE) return 13;
 	strcat(dest_path, tmp);	//buffer overflow
-	//printf("%s\n", dest_path);
-	if((fd = creat(dest_path, 0644)) < 0) return false;	//to be perfected
+#ifdef DEBUG
+	printf("[+]: Destination file path: %s\n", dest_path);
+#endif
+	if((fd = creat(dest_path, 0644)) < 0) return 14;
 	while(1){	//to be perfected
-		if(recv_msg(message, &i) == FAILURE) break;	//to be perfected
-		//printf("%d\n", i);
-		if(i <= 0) return false;
-		j = write(fd, message, i);
-		if(j != i) return false; //exception handling;
-		//printf("%d\n", j);
-		sum += i;
+		recv_msg(recv_msg_buf, &recv_msg_len);
+		if(recv_msg_len <= 0) break;
+		sum += recv_msg_len;
+		write(fd, recv_msg_buf, recv_msg_len);
 	}
-	printf("%d bytes recived\n", sum);
+	printf("[+]: Receive %d bytes\n", sum);
 	close(fd);
-	return true;
+	return 0;
 }
 
-bool put_file(char *dest_path, char *sour_path){
-	int i, sum = 0;
+int put_file(char *dest_path, char *sour_path){
+	int len, sum = 0;
 	int fd;
+	char* tmp;
+	char flag;
 	struct stat s_buf;
-	stat(sour_path, &s_buf);
-	if(!S_ISREG(s_buf.st_mode)) return false;
 	if(dest_path[strlen(dest_path) - 1] != '/')
 		strcat(dest_path, "/");
-	char *tmp = strrchr(sour_path, '/');
-	if(tmp == NULL) tmp = sour_path;
-	else ++tmp;
+	tmp = strrchr(sour_path, '/');
+	if(tmp) ++tmp;
+	else tmp = sour_path;
+	if(strlen(tmp) + strlen(dest_path) >= BUFSIZE) return 13;
 	strcat(dest_path, tmp);	//buffer overflow
-	send_msg(dest_path, strlen(dest_path));
-	if((fd = open(sour_path, O_RDONLY)) < 0) return false;
-	printf("%s\n", sour_path);
-	while(1){
-		i = read(fd, message, BUFSIZE);
-		//printf("%d\n", i);
-		if(i <= 0) return false;
-		send_msg(message, i);
-		sum += i;
+	stat(sour_path, &s_buf);
+	if(!S_ISREG(s_buf.st_mode)){
+		flag = 0;
+		send_msg(&flag, 1);
+		return 11;
 	}
+#ifdef DEBUG
+	printf("[+]: Source file path: %s\n", sour_path);
+#endif
+	send_msg(dest_path, strlen(dest_path));
+	recv_msg(recv_msg_buf, &recv_msg_len);
+	if(recv_msg_len == 1 && recv_msg_buf[0] == 0) return 12;
+	if((fd = open(sour_path, O_RDONLY)) < 0) return 16;
+	while(1){
+		send_msg_len = read(fd, send_msg_buf, BUFSIZE);
+		if(send_msg_len <= 0) break;
+		send_msg(send_msg_buf, send_msg_len);
+		sum += send_msg_len;
+	}
+	printf("[+]: Send %d bytes\n", sum);
 	close(fd);
-	return true;
+	return 0;
 }
 
-bool run_shell(char *shell_command){
+int run_shell(char *shell_command){
 	fd_set rd;
 	int len;
 	struct termios tp, tr;
@@ -152,25 +171,23 @@ bool run_shell(char *shell_command){
 		FD_SET(client, &rd);
 		select(client + 1, &rd, NULL, NULL, NULL);
 		if(FD_ISSET(client, &rd)){
-			if(recv_msg(message, &len) == false) break;
-			//printf("client %d\n", len);
-			write(1, message, len);
+			recv_msg(recv_msg_buf, &len);
+			if(len <= 0) break;
+			write(1, recv_msg_buf, len);
 		}
 		if(FD_ISSET(0, &rd)){
-			if((len = read(0, message, BUFSIZE)) <= 0) break;
-			//printf("stdin\n");
-			send_msg(message, len);
+			if((len = read(0, send_msg_buf, BUFSIZE)) <= 0) break;
+			send_msg(send_msg_buf, len);
 		}
 	}
-	//printf("runshelldone\n");
 	if(tcsetattr(0, TCSAFLUSH, &tp) < 0) return false;
-	//exception handling;
-	return true;
+	return 0;
 }
 
-bool exec_command(){
+int exec_command(){
+	int ret;
 	char command_msg;
-	parse_command();
+	if(ret = parse_command()) return ret;
 	if(strcmp(command, "shell") == 0){
 		if(strlen(opt_first) == 0)
 			strcpy(opt_first, "exec bash --login");
@@ -179,79 +196,105 @@ bool exec_command(){
 		run_shell(opt_first);	//exception handling
 	}
 	else if(strcmp(command, "get") == 0){
-		//printf("here\n");
-        	if(strlen(opt_first) == 0) return false;
+        	if(strlen(opt_first) == 0) return 10;
 		command_msg = GET_FILE;
 		send_msg(&command_msg, 1);
 		//download a file from opt_s to opt_d;
 		if(strlen(opt_second))
-            		get_file(opt_first, opt_second);	//exception handling
+            		return get_file(opt_first, opt_second);	//exception handling
         	else{
 			strcpy(opt_second, "./");
-			get_file(opt_second, opt_first);
+			return get_file(opt_second, opt_first);
 		}
 	}
 	else if(strcmp(command, "put") == 0){
-		if(strlen(opt_first) == 0) return false;
+		if(strlen(opt_first) == 0) return 10;
 		command_msg = PUT_FILE;
 		send_msg(&command_msg, 1);
 		//upload a file from opt_s to opt_d;
 		if(strlen(opt_second))
-			put_file(opt_first, opt_second);	//exception handling
+			return put_file(opt_first, opt_second);	//exception handling
 		else{
 			strcpy(opt_second, "./");
-			put_file(opt_second, opt_first);
+			return put_file(opt_second, opt_first);
 		}
 	}
 	else
-		printf("unkonwn command");
-	return true;
+		return 15;
+	return 0;
+}
+
+void usage(){
+	printf("\t-h host\tIp address.\n");
+	printf("\t-p port\tListen port.\n");
+	printf("\t-u\tPrint help message.");
+	exit(0);
 }
 
 int main(int argc, char *argv[]){
 	int ch;
-	while((ch = getopt(argc, argv, "h:p:")) != -1){
+	int ret = 0;
+	while((ch = getopt(argc, argv, "h:p:u")) != -1){
 		switch(ch){
 			case 'h':
-				host = inet_addr(optarg);
+				if((host = inet_addr(optarg)) == INADDR_NONE){
+					ret = 1;
+					EXIT;
+				}
 				break;
 			case 'p':
-				port = atoi(optarg);
+				if((port = atoi(optarg)) == 0){
+					ret = 2;
+					EXIT;
+				}
 				break;
+			case 'u':
+				usage(); break;
 			default:
-				printf("usage\n");
+				printf("Existence of unidentified parameters\n");
+				exit(0);
 		}
 	}
-	//printf("%u\n", host);
 
 	struct sockaddr_in addr;
 	int addr_len;
 #ifdef REVERSE
-	create_server_socket();
+	if(ret = create_server_socket()) EXIT;
 	//whether the output shoule be added
 	if((client = accept(server, (struct sockaddr *)&addr, &addr_len)) < 0){
 		close(server);
-		return -1;
+		ret = 17;
+		EXIT;
 	}
 #else	
-	if((client = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-		return -1;
+	if((client = socket(AF_INET, SOCK_STREAM, 0)) < 0){
+		ret = 3;
+		EXIT;
+	}
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = host;
 	addr.sin_port = htons(port);
 	if(connect(client, (struct sockaddr *)&addr, sizeof(addr)) < 0){
 		close( client );
-		return -1;
+		ret = 4;
+		EXIT;
 	}
 #endif
-	if(init_client() == FAILURE) return -1;
-	//printf("Init success\n");
+#ifdef DEBUG
+	printf("[+]: Connection success\n");
+#endif
+	if(ret = init_client()) EXIT;
+#ifdef DEBUG
+	printf("[+]: Init success\n");
+#endif
+	memset(command_line, 0, sizeof(command_line));
 	fgets(command_line, BUFSIZE, stdin);
-	if(exec_command() == FAILURE) return -1;
-	//printf("Done\n");
+	if(ret = exec_command()) EXIT;
 #ifdef REVERSE
 	close(server);
 #endif
+	return 0;
+catch:	handle_error(ret);
 	return 0;
 }

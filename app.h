@@ -6,18 +6,17 @@
 #include <sys/stat.h>
 #include "basic.h"
 
-extern int berror;
 extern int client;
 extern int server;
 extern struct context send_ctx;
 extern struct context recv_ctx;
 
-void handle_error(void);
-bool create_server_socket(void);
-bool send_msg(char *msg, int len);
+void handle_error(int ret);
+int create_server_socket(void);
+int send_msg(char *msg, int len);
 int recv_msg(char *msg, int *plen);
 bool send_data(byte *loc, int len, int flag);
-int recv_data(byte *loc, int len, int flag);
+bool recv_data(byte *loc, int len, int flag);
 void setup_context(struct context *ctx, char *key, byte *IV);
 
 unsigned int host = 0;

@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <errno.h>
 
 typedef unsigned char byte;
 typedef unsigned long int word;
@@ -25,5 +26,7 @@ typedef unsigned long int word;
 //#define BACKGROUND
 //#define REVERSE
 //#define DEBUG
+//#define EXIT goto catch
+#define EXIT return ret
 
 #endif /* basic.h */

