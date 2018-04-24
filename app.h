@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
 #include "basic.h"
 
 extern int client;

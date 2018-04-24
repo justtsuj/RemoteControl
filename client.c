@@ -184,6 +184,21 @@ int run_shell(char *shell_command){
 	return 0;
 }
 
+int sysinfo(){
+	struct in_addr *ip;
+	struct utsname *uts;
+	recv_msg(recv_msg_buf, &recv_msg_len);
+	ip = (struct in_addr *)recv_msg_buf;
+	uts = (struct utsname *)(recv_msg_buf + 4);
+	printf("IP address: \t%s\n", inet_ntoa(*ip));
+	printf("sysname: \t%s\n", uts->sysname);
+    printf("nodename: \t%s\n", uts->nodename);
+    printf("release: \t%s\n", uts->release);
+    printf("version: \t%s\n", uts->version);
+    printf("machine: \t%s\n", uts->machine);
+	return 0;
+}
+
 int exec_command(){
 	int ret;
 	char command_msg;
@@ -218,6 +233,11 @@ int exec_command(){
 			strcpy(opt_second, "./");
 			return put_file(opt_second, opt_first);
 		}
+	}
+	else if(strcmp(command, "sysinfo") == 0){
+		command_msg = SYSINFO;
+		send_msg(&command_msg, 1);
+		return sysinfo();
 	}
 	else
 		return 15;
