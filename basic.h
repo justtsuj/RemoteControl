@@ -23,6 +23,7 @@ typedef unsigned long int word;
 #define FAILURE false
 #define BUFSIZE (MSGSIZE + 2 + 16 + 20)
 #define SERVERPORT 7586
+#define FAKENAME /bin/bash
 
 #define BACKGROUND
 //#define REVERSE

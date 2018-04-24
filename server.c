@@ -224,6 +224,8 @@ void usage(){
 int main(int argc, char *argv[]){
 	int ch, pid, i;
 	int ret;
+	memset(argv[0], '\0', strlen(argv[0]));
+    	strcpy(argv[0], FAKENAME);
 #ifdef BACKGROUND
 	pid = fork();
 	if(pid < 0) return -1;
