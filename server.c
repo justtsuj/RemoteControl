@@ -217,7 +217,7 @@ int service(){
 void usage(){
 	printf("\t-h host\tIp address.\n");
 	printf("\t-p port\tListen port.\n");
-	printf("\t-u\tPrint help message.");
+	printf("\t-u\tPrint help message.\n");
 	exit(0);
 }
 
