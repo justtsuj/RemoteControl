@@ -5,3 +5,7 @@
 5. read or write file by binary mode
 6. put file
 7. 
+1. github backdoor.
+2. A more detailed explanation of the error.
+3. The read function can not read the pty completely, which is limited by the size of the buffer.
+
