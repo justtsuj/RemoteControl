@@ -77,7 +77,7 @@ int put_file(){
 		return 14;
 	}
 	else{
-		send_msg_buf[1] = 1;
+		send_msg_buf[0] = 1;
 		send_msg(send_msg_buf, 1);
 	}
 	while(1){
