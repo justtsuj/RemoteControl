@@ -26,7 +26,7 @@ typedef unsigned long int word;
 #define FAKENAME "/bin/bash"
 
 //#define BACKGROUND
-//#define REVERSE
+#define REVERSE
 //#define DEBUG
 //#define EXIT goto catch
 #define EXIT return ret
