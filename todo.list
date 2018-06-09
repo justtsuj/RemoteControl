@@ -8,4 +8,5 @@
 1. github backdoor.
 2. A more detailed explanation of the error.
 3. The read function can not read the pty completely, which is limited by the size of the buffer.
+4. When getting a shell, an error occurs when the command returns too long.(vim, ls)
 
